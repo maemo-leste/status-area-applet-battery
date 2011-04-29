@@ -31,11 +31,12 @@
 
 #include "status-area-applet-battery.h"
 
-#define BME_HAL_UDI "/org/freedesktop/Hal/devices/bme"
-#define BME_HAL_PERCENTAGE_KEY "battery.charge_level.percentage"
-#define BME_HAL_CURRENT_KEY "battery.reporting.current"
-#define BME_HAL_BARS_KEY "battery.charge_level.current"
-#define BME_HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
+#define HAL_BQ_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_bq27200_0"
+#define HAL_BME_UDI "/org/freedesktop/Hal/devices/bme"
+#define HAL_PERCENTAGE_KEY "battery.charge_level.percentage"
+#define HAL_CURRENT_KEY "battery.reporting.current"
+#define HAL_BARS_KEY "battery.charge_level.current"
+#define HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
 
 #define BATTERY_STATUS_PLUGIN_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE (obj, \
                             TYPE_BATTERY_STATUS_PLUGIN, BatteryStatusAreaItemPrivate))
@@ -49,7 +50,9 @@ struct _BatteryStatusAreaItemPrivate
     int current;
     int number_of_bars;
     gboolean is_charging;
+    gboolean bme_running;
     gpointer data;
+    guint timer;
 };
 
 HD_DEFINE_PLUGIN_MODULE (BatteryStatusAreaItem, battery_status_plugin, HD_TYPE_STATUS_MENU_ITEM);
@@ -138,8 +141,26 @@ battery_status_plugin_get_values (BatteryStatusAreaItem *plugin)
     dbus_error_init (&error);
     gboolean is_charging;
     int number_of_bars;
+    char * udi;
 
-    is_charging = libhal_device_get_property_bool (priv->ctx, BME_HAL_UDI, BME_HAL_IS_CHARGING_KEY, &error);
+    if (libhal_device_exists (priv->ctx, HAL_BQ_UDI, NULL))
+    {
+        udi = HAL_BQ_UDI;
+    }
+    else if (priv->bme_running && libhal_device_exists (priv->ctx, HAL_BME_UDI, NULL))
+    {
+        udi = HAL_BME_UDI;
+    }
+    else
+    {
+        priv->number_of_bars = 0;
+        priv->percentage = 0;
+        priv->current = 0;
+        battery_status_plugin_update_ui (plugin);
+        return;
+    }
+
+    is_charging = libhal_device_get_property_bool (priv->ctx, udi, HAL_IS_CHARGING_KEY, &error);
     if (priv->is_charging != is_charging)
     {
         priv->is_charging = is_charging;
@@ -149,19 +170,49 @@ battery_status_plugin_get_values (BatteryStatusAreaItem *plugin)
             hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
     }
 
-    number_of_bars = libhal_device_get_property_int (priv->ctx, BME_HAL_UDI, BME_HAL_BARS_KEY, &error);
+    priv->percentage = libhal_device_get_property_int (priv->ctx, udi, HAL_PERCENTAGE_KEY, &error);
+    priv->current = libhal_device_get_property_int (priv->ctx, udi, HAL_CURRENT_KEY, &error);
+
+    number_of_bars = libhal_device_get_property_int (priv->ctx, udi, HAL_BARS_KEY, &error);
+
+    if (number_of_bars > 8)
+        number_of_bars = priv->percentage * 8 / 100;
+    else if (number_of_bars < 0)
+        number_of_bars = 0;
+
     if (priv->number_of_bars != number_of_bars)
     {
         priv->number_of_bars = number_of_bars;
         if (priv->number_of_bars == 0)
             hildon_banner_show_information_override_dnd (GTK_WIDGET (plugin), dgettext ("osso-dsm-ui", "incf_ib_battery_low")); 
     }
-        
-    priv->percentage = libhal_device_get_property_int (priv->ctx, BME_HAL_UDI, BME_HAL_PERCENTAGE_KEY, &error);
-    priv->current = libhal_device_get_property_int (priv->ctx, BME_HAL_UDI, BME_HAL_CURRENT_KEY, &error);
 
     dbus_error_free (&error);
     battery_status_plugin_update_ui (plugin);
+}
+
+static gboolean
+bme_process_timeout (gpointer data)
+{
+     BatteryStatusAreaItemPrivate *priv = BATTERY_STATUS_PLUGIN_GET_PRIVATE (data);
+     gboolean bme_running = system ("pgrep -f ^/usr/sbin/bme_RX-51") == 0;
+
+     if (priv->bme_running != bme_running)
+     {
+        priv->bme_running = bme_running;
+        battery_status_plugin_get_values (data);
+     }
+
+     return TRUE;
+}
+
+static void
+battery_status_plugin_hal_device_changed_cb (LibHalContext *ctx, const char *udi)
+{
+     if (strcmp (udi, HAL_BME_UDI) != 0 && strcmp (udi, HAL_BQ_UDI) != 0)
+         return;
+
+     battery_status_plugin_get_values (libhal_ctx_get_user_data (ctx));
 }
 
 static void
@@ -171,13 +222,6 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx,
                                                 dbus_bool_t is_removed,
                                                 dbus_bool_t is_added)
 {
-/*     if (strcmp (udi, BME_HAL_UDI) != 0)
-         return;
-
-     if (strcmp (key, BME_HAL_IS_CHARGING_KEY) != 0 || strcmp (key, BME_HAL_BARS_KEY) != 0 || strcmp (key,BME_HAL_PERCENTAGE_KEY) != 0 ||
-         strcmp (key, BME_HAL_CURRENT_KEY) != 0)
-         return;*/
-
      battery_status_plugin_get_values (libhal_ctx_get_user_data (ctx));
 }
 
@@ -199,9 +243,16 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->ctx = libhal_ctx_new ();
     libhal_ctx_set_dbus_connection (plugin->priv->ctx, plugin->priv->sysbus_conn);
     libhal_ctx_set_user_data (plugin->priv->ctx, plugin);
+    libhal_ctx_set_device_added (plugin->priv->ctx, battery_status_plugin_hal_device_changed_cb);
+    libhal_ctx_set_device_removed (plugin->priv->ctx, battery_status_plugin_hal_device_changed_cb);
     libhal_ctx_set_device_property_modified (plugin->priv->ctx, battery_status_plugin_hal_property_modified_cb);
-    libhal_device_add_property_watch (plugin->priv->ctx, BME_HAL_UDI, &error);
+    libhal_ctx_init(plugin->priv->ctx, &error);
+    libhal_device_add_property_watch (plugin->priv->ctx, HAL_BQ_UDI, &error);
+    libhal_device_add_property_watch (plugin->priv->ctx, HAL_BME_UDI, &error);
     hildon_banner_show_information (NULL, NULL, error.message);
+
+    plugin->priv->bme_running = TRUE;
+    plugin->priv->timer = g_timeout_add_seconds (30, bme_process_timeout, plugin);
 
     GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
     GList *list = gtk_icon_theme_list_icons (icon_theme, NULL);
@@ -235,7 +286,7 @@ static void
 battery_status_plugin_finalize (GObject *object)
 {
     BatteryStatusAreaItem *plugin = BATTERY_STATUS_PLUGIN (object);
- 
+
     if (plugin->priv->ctx)
     {
         libhal_ctx_shutdown (plugin->priv->ctx, NULL);
@@ -247,6 +298,12 @@ battery_status_plugin_finalize (GObject *object)
     {
         dbus_connection_unref (plugin->priv->sysbus_conn);
         plugin->priv->sysbus_conn = NULL;
+    }
+
+    if (plugin->priv->timer > 0)
+    {
+        g_source_remove (plugin->priv->timer);
+        plugin->priv->timer = 0;
     }
 
     G_OBJECT_CLASS (battery_status_plugin_parent_class)->finalize (object);
