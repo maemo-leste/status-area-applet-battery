@@ -1,19 +1,15 @@
-OBJS=status-area-applet-battery.o
-SOURCES=status-area-applet-battery.c
-LIB=status-area-applet-battery.so
-PKG_FLAGS=$(shell pkg-config hildon-1 hildon-notify profile libhildondesktop-1 dbus-1 hal --libs --cflags)
-CCFLAGS=-shared -Wall
-CC=gcc
+all: status-area-applet-battery.so
 
-all:$(LIB)
-
-$(LIB):$(OBJS)
-	$(CC) $(CCFLAGS) $(PKG_FLAGS) $(OBJS) -o $(LIB)
-
-.c.o:
-	$(CC) $(CCFLAGS) $(PKG_FLAGS) -c $< -o $@
-
-.PHONE: clean all
+install:
+	install -d "$(DESTDIR)/usr/lib/hildon-desktop/"
+	install -d "$(DESTDIR)/usr/share/applications/hildon-status-menu/"
+	install -m 644 status-area-applet-battery.so "$(DESTDIR)/usr/lib/hildon-desktop/"
+	install -m 644 status-area-applet-battery.desktop "$(DESTDIR)/usr/share/applications/hildon-status-menu/"
 
 clean:
-	rm -f $(OBJS) $(LIB)
+	$(RM) status-area-applet-battery.so
+
+status-area-applet-battery.so: status-area-applet-battery.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs hildon-1 libcanberra profile libhildondesktop-1 dbus-1 hal) -W -Wall -O2 -shared $^ -o $@
+
+.PHONY: all install clean
