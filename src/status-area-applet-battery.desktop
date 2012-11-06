@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=Battery
+Comment=Status Area Battery applet
+Type=default
+X-Path=status-area-applet-battery.so
