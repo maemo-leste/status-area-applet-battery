@@ -47,8 +47,6 @@
 #define HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
 #define HAL_IS_DISCHARGING_KEY "battery.rechargeable.is_discharging"
 
-G_BEGIN_DECLS
-
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
 typedef struct _BatteryStatusAreaItemPrivate BatteryStatusAreaItemPrivate;
@@ -88,8 +86,6 @@ struct _BatteryStatusAreaItemPrivate
 };
 
 GType battery_status_plugin_get_type (void);
-
-G_END_DECLS
 
 HD_DEFINE_PLUGIN_MODULE (BatteryStatusAreaItem, battery_status_plugin, HD_TYPE_STATUS_MENU_ITEM);
 
@@ -493,10 +489,10 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
         }
 
         if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
-            plugin->priv->bme_last_update = time(NULL);
+            plugin->priv->bme_last_update = time (NULL);
     }
 
-    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update + 15 < time(NULL))
+    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update + 15 < time (NULL))
         if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
             battery_status_plugin_update_charging (plugin, udi);
 
