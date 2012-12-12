@@ -364,7 +364,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     if (plugin->priv->verylow != verylow)
         plugin->priv->verylow = verylow;
 
-    if (!plugin->priv->bme_running && current != -1)
+    if (!plugin->priv->bme_running && current != -1 && !plugin->priv->is_charging)
     {
         if (current < 20)
             battery_status_plugin_battery_empty (plugin);
