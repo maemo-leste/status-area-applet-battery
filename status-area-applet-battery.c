@@ -472,6 +472,11 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
     if (strcmp (udi, HAL_BQ_UDI) != 0 && strcmp (udi, HAL_RX_UDI) != 0 && strcmp (udi, HAL_BME_UDI) != 0)
         return;
 
+    if (strcmp (key, HAL_PERCENTAGE_KEY) != 0 && strcmp (key, HAL_CAPACITY_KEY) != 0 && strcmp (key, HAL_CURRENT_KEY) != 0 &&
+        strcmp (key, HAL_DESIGN_KEY) != 0 && strcmp (key, HAL_TIME_KEY) != 0 && strcmp (key, HAL_BARS_KEY) != 0 &&
+        strcmp (key, HAL_IS_CHARGING_KEY) != 0 && strcmp (key, HAL_IS_DISCHARGING_KEY) != 0)
+        return;
+
     if (strcmp (udi, HAL_BME_UDI) == 0)
     {
         if (!plugin->priv->bme_running)
