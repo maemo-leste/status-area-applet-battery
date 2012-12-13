@@ -210,6 +210,8 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
         else if (plugin->priv->time/60/60 > 0)
         {
             num = plugin->priv->time/60/60;
+            if (plugin->priv->is_charging)
+                ++num;
             str = dngettext ("mediaplayer", "mp_bd_label_hour%s", "mp_bd_label_hours%s", num);
 
             strncpy (text2, str, sizeof (text2)-1);
