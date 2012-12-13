@@ -70,7 +70,7 @@ struct _BatteryStatusAreaItemPrivate
     DBusConnection *sysbus_conn;
     LibHalContext *ctx;
     ca_context *context;
-    gpointer data;
+    ca_proplist *pl;
     guint bme_timer;
     guint charger_timer;
     int percentage;
@@ -89,10 +89,17 @@ GType battery_status_plugin_get_type (void);
 
 HD_DEFINE_PLUGIN_MODULE (BatteryStatusAreaItem, battery_status_plugin, HD_TYPE_STATUS_MENU_ITEM);
 
-static void
-battery_status_plugin_play_sound (BatteryStatusAreaItem *plugin, const char *file)
+static gboolean
+battery_status_plugin_replay_sound (gpointer data)
 {
-    ca_proplist *pl = NULL;
+    BatteryStatusAreaItem *plugin = data;
+    ca_context_play_full (plugin->priv->context, 1, plugin->priv->pl, NULL, NULL);
+    return FALSE;
+}
+
+static void
+battery_status_plugin_play_sound (BatteryStatusAreaItem *plugin, const char *file, gboolean repeat)
+{
     int volume = profile_get_value_as_int (NULL, "system.sound.level");
 
     if (volume == 1)
@@ -102,19 +109,14 @@ battery_status_plugin_play_sound (BatteryStatusAreaItem *plugin, const char *fil
     else
         return;
 
-    if (ca_proplist_create (&pl) < 0)
-    {
-        g_warning ("Could not create Canberra proplist");
-        return;
-    }
+    ca_proplist_sets (plugin->priv->pl, CA_PROP_MEDIA_NAME, "Battery Notification");
+    ca_proplist_sets (plugin->priv->pl, CA_PROP_MEDIA_FILENAME, file);
+    ca_proplist_setf (plugin->priv->pl, CA_PROP_CANBERRA_VOLUME, "%d", volume);
 
-    ca_proplist_sets (pl, CA_PROP_MEDIA_NAME, "Battery Notification");
-    ca_proplist_sets (pl, CA_PROP_MEDIA_FILENAME, file);
-    ca_proplist_setf (pl, CA_PROP_CANBERRA_VOLUME, "%d", volume);
+    ca_context_play_full (plugin->priv->context, 0, plugin->priv->pl, NULL, NULL);
 
-    ca_context_play_full (plugin->priv->context, 0, pl, NULL, NULL);
-
-    ca_proplist_destroy (pl);
+    if (repeat)
+        g_timeout_add_seconds (0, battery_status_plugin_replay_sound, plugin);
 }
 
 static void
@@ -260,7 +262,7 @@ static void
 battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
 {
     hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_charging"));
-    battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-charging_started.wav");
+    battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-charging_started.wav", FALSE);
 
     if (plugin->priv->charger_timer == 0)
         plugin->priv->charger_timer = g_timeout_add_seconds (1, battery_status_plugin_charging_timeout, plugin);
@@ -288,7 +290,7 @@ battery_status_plugin_battery_empty (BatteryStatusAreaItem *plugin)
 {
     hildon_banner_show_information_override_dnd (GTK_WIDGET (plugin), dgettext ("osso-dsm-ui", "incf_ib_battery_recharge"));
     battery_status_plugin_update_icon (plugin, -1);
-    battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-recharge_battery.wav");
+    battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-recharge_battery.wav", FALSE);
 }
 
 static void
@@ -296,10 +298,7 @@ battery_status_plugin_battery_low (BatteryStatusAreaItem *plugin)
 {
     hildon_banner_show_information_override_dnd (GTK_WIDGET (plugin), dgettext ("osso-dsm-ui", "incf_ib_battery_low"));
     battery_status_plugin_update_icon (plugin, 0);
-    battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-battery_low.wav");
-
-    if (plugin->priv->verylow)
-        battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-battery_low.wav");
+    battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-battery_low.wav", plugin->priv->verylow);
 }
 
 static void
@@ -556,6 +555,13 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     ca_context_open (plugin->priv->context);
 
+    plugin->priv->pl = NULL;
+    if (ca_proplist_create (&plugin->priv->pl) < 0)
+    {
+        g_warning ("Could not create Canberra proplist");
+        return;
+    }
+
     plugin->priv->title = gtk_label_new (NULL);
     if (!plugin->priv->title)
     {
@@ -659,6 +665,12 @@ static void
 battery_status_plugin_finalize (GObject *object)
 {
     BatteryStatusAreaItem *plugin = G_TYPE_CHECK_INSTANCE_CAST (object, battery_status_plugin_get_type (), BatteryStatusAreaItem);
+
+    if (plugin->priv->pl)
+    {
+        ca_proplist_destroy (plugin->priv->pl);
+        plugin->priv->pl = NULL;
+    }
 
     if (plugin->priv->context)
     {
