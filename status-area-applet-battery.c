@@ -368,7 +368,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     {
         if (current < 20)
             battery_status_plugin_battery_empty (plugin);
-        else if (current < 200 && plugin->priv->percentage != percentage && percentage%2 == 0)
+        else if (current < 200 && ((plugin->priv->percentage != percentage && percentage%2 == 0) || (verylow && plugin->priv->current != current && current%4 == 0)))
             battery_status_plugin_battery_low (plugin);
     }
 
