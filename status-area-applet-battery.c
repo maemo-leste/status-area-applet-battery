@@ -570,7 +570,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     }
 
     plugin->priv->image = gtk_image_new ();
-    if (!plugin->priv->value)
+    if (!plugin->priv->image)
     {
         g_warning ("Could not create GtkImage");
         gtk_widget_destroy (plugin->priv->title);
@@ -688,6 +688,8 @@ battery_status_plugin_finalize (GObject *object)
         g_source_remove (plugin->priv->charger_timer);
         plugin->priv->charger_timer = 0;
     }
+
+    hd_status_plugin_item_set_status_area_icon (HD_STATUS_PLUGIN_ITEM (plugin), NULL);
 
     G_OBJECT_CLASS (battery_status_plugin_parent_class)->finalize (object);
 }
