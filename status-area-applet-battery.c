@@ -418,7 +418,10 @@ battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char
     {
         if (!is_charging && !is_discharging)
         {
-            is_charging = TRUE;
+            if (plugin->priv->current == 0)
+                is_charging = FALSE;
+            else
+                is_charging = TRUE;
             is_discharging = TRUE;
         }
 
