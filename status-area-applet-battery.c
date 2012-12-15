@@ -273,7 +273,7 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
 {
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
         hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
-    else if (!plugin->priv->is_charging)
+    else if (!plugin->priv->is_charging && plugin->priv->charger_timer > 0)
         hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
 
     if (plugin->priv->charger_timer > 0)
