@@ -325,13 +325,13 @@ battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
 {
-    if (plugin->priv->is_charging && plugin->priv->is_discharging)
-        hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
-    else if (!plugin->priv->is_charging && plugin->priv->charger_timer > 0)
-        hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
-
     if (plugin->priv->charger_timer > 0)
     {
+        if (plugin->priv->is_charging && plugin->priv->is_discharging)
+            hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
+        else if (!plugin->priv->is_charging)
+            hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
+
         g_source_remove (plugin->priv->charger_timer);
         plugin->priv->charger_timer = 0;
     }
@@ -475,7 +475,7 @@ battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char
     {
         if (!is_charging && !is_discharging)
         {
-            if (plugin->priv->current == 0)
+            if (libhal_device_get_property_int (plugin->priv->ctx, udi, HAL_CURRENT_KEY, NULL) == 0)
                 is_charging = FALSE;
             else
                 is_charging = TRUE;
@@ -540,9 +540,18 @@ battery_status_plugin_hal_device_modified_cb (LibHalContext *ctx, const char *ud
 
     if (strcmp (udi, HAL_RX_UDI) == 0)
          plugin->priv->design = 0;
-
-    if (libhal_device_exists (plugin->priv->ctx, udi, NULL))
-        battery_status_plugin_update_charging (plugin, udi);
+    else
+    {
+        if (libhal_device_exists (plugin->priv->ctx, udi, NULL))
+           battery_status_plugin_update_charging (plugin, udi);
+        else
+        {
+            if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
+                battery_status_plugin_update_charging (plugin, HAL_BME_UDI);
+            else if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
+                battery_status_plugin_update_charging (plugin, HAL_BQ_UDI);
+        }
+    }
 
     battery_status_plugin_update_values (plugin);
 }
@@ -735,7 +744,6 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         plugin->priv->dbus_timer = g_timeout_add_seconds (60, battery_status_plugin_dbus_timeout, plugin);
         battery_status_plugin_dbus_timeout (plugin);
     }
-
 
     if (libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
         battery_status_plugin_update_charging (plugin, HAL_BME_UDI);
