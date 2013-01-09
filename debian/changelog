@@ -1,3 +1,14 @@
+status-area-applet-battery (1.0-2) fremantle; urgency=low
+
+  * Do not report battery low when charging
+  * Do not update widget if some irrelevant HAL key was updated
+  * Repeat battery low sound when battery is too low
+  * Fixed reporting battery state
+  * Added support for remaining idle time
+  * Do not report battery low too often (max every 30 seconds)
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Wed, 09 Jan 2013 13:34:06 +0100
+
 status-area-applet-battery (1.0-1) fremantle; urgency=low
 
   * Initial Release.
