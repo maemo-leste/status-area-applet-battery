@@ -80,6 +80,7 @@ struct _BatteryStatusAreaItemPrivate
     int idle_time;
     int active_time;
     int bars;
+    int charging_id;
     gboolean is_charging;
     gboolean is_discharging;
     gboolean verylow;
@@ -308,10 +309,9 @@ static gboolean
 battery_status_plugin_charging_timeout (gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
-    static int id = 1;
 
-    battery_status_plugin_update_icon (plugin, id);
-    id = id%8+1; /* id is 1..8 */
+    plugin->priv->charging_id = plugin->priv->charging_id % 8 + 1; /* id is 1..8 */
+    battery_status_plugin_update_icon (plugin, plugin->priv->charging_id);
     return TRUE;
 }
 
