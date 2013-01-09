@@ -86,6 +86,7 @@ struct _BatteryStatusAreaItemPrivate
     gboolean verylow;
     gboolean bme_running;
     time_t bme_last_update;
+    time_t low_last_reported;
 };
 
 GType battery_status_plugin_get_type (void);
@@ -353,6 +354,11 @@ battery_status_plugin_battery_empty (BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_battery_low (BatteryStatusAreaItem *plugin)
 {
+    if (plugin->priv->low_last_reported < time (NULL) && plugin->priv->low_last_reported + 30 < time (NULL))
+        return;
+
+    plugin->priv->low_last_reported = time (NULL);
+
     hildon_banner_show_information_override_dnd (GTK_WIDGET (plugin), dgettext ("osso-dsm-ui", "incf_ib_battery_low"));
     battery_status_plugin_update_icon (plugin, 0);
     battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-battery_low.wav", plugin->priv->verylow);
