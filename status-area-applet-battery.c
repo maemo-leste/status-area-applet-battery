@@ -277,6 +277,9 @@ battery_status_plugin_dbus_proxy (DBusConnection *connection G_GNUC_UNUSED, DBus
     if (!dbus_message_get_args (message, NULL, DBUS_TYPE_UINT32, &idle, DBUS_TYPE_UINT32, &active, DBUS_TYPE_INVALID))
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
+    if (active > idle && idle)
+        active = idle;
+
     plugin->priv->idle_time = idle*60;
     plugin->priv->active_time = active*60;
     battery_status_plugin_update_text (plugin);
@@ -450,6 +453,9 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
         if (plugin->priv->is_discharging)
             battery_status_plugin_update_icon (plugin, bars);
     }
+
+    if (plugin->priv->idle_time < active_time && plugin->priv->idle_time)
+        plugin->priv->idle_time = active_time;
 
     if (plugin->priv->active_time == 0 && active_time != 0)
         battery_status_plugin_dbus_timeout (plugin);
