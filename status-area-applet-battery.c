@@ -596,7 +596,7 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
             plugin->priv->bme_last_update = time (NULL);
     }
 
-    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update + 15 < time (NULL))
+    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update > time (NULL) || plugin->priv->bme_last_update + 15 < time (NULL))
         if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
             battery_status_plugin_update_charging (plugin, udi);
 
