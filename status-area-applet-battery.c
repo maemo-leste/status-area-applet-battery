@@ -372,7 +372,6 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     int design = 0;
     int active_time = 0;
     int bars = 0;
-    int bars_new = 0;
     gboolean verylow = FALSE;
 
     if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
@@ -421,9 +420,8 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     if (current > 0 && design > 0)
         percentage = 100 * current / design;
 
-    bars_new = 8 * (6.25 + percentage) / 100;
-    if (!plugin->priv->bme_running || bars_new < bars)
-        bars = bars_new;
+    if (!plugin->priv->bme_running)
+        bars = 8 * (6.25 + percentage) / 100;
 
     if (plugin->priv->verylow != verylow)
         plugin->priv->verylow = verylow;
