@@ -441,6 +441,8 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
 
     if (percentage < 0)
         percentage = 0;
+    else if (percentage > 100)
+        percentage = 100;
 
     if (current < 0)
         current = 0;
