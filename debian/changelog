@@ -1,3 +1,10 @@
+status-area-applet-battery (1.0-3) fremantle; urgency=low
+
+  * Do not report percentage higher then 100
+  * Recalculate bars only if bme is not running
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Sat, 26 Jan 2013 01:06:49 +0100
+
 status-area-applet-battery (1.0-2) fremantle; urgency=low
 
   * Do not report battery low when charging
