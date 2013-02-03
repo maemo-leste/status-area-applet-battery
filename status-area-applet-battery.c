@@ -279,6 +279,9 @@ battery_status_plugin_dbus_proxy (DBusConnection *connection G_GNUC_UNUSED, DBus
     if (!dbus_message_get_args (message, NULL, DBUS_TYPE_UINT32, &idle, DBUS_TYPE_UINT32, &active, DBUS_TYPE_INVALID))
         return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
+    if (!plugin->priv->bme_running || plugin->priv->is_charging || !plugin->priv->is_discharging)
+        return DBUS_HANDLER_RESULT_HANDLED;
+
     if (active > idle && idle)
         active = idle;
 
