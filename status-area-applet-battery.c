@@ -745,7 +745,8 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->is_discharging = TRUE;
     plugin->priv->bme_running = FALSE;
 
-    bme_replacement = system ("dpkg -l bme-rx-51 2>/dev/null | grep -q '^ii' && dpkg --compare-versions \"$(dpkg-query -W -f \\${Version} bme-rx-51)\" ge '1.0'") == 0;
+    bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, "maemo.bme.version", NULL);
+
     if (!bme_replacement)
         plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);
     else
