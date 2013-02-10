@@ -46,6 +46,8 @@
 #define HAL_BARS_KEY "battery.charge_level.current"
 #define HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
 #define HAL_IS_DISCHARGING_KEY "battery.rechargeable.is_discharging"
+#define HAL_BME_VERSION_KEY "maemo.bme.version"
+#define HAL_CONNECTION_STATUS_KEY "maemo.charger.connection_status"
 
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
@@ -83,6 +85,7 @@ struct _BatteryStatusAreaItemPrivate
     int charging_id;
     gboolean is_charging;
     gboolean is_discharging;
+    gboolean charger_connected;
     gboolean verylow;
     gboolean bme_running;
     time_t bme_last_update;
@@ -320,11 +323,21 @@ battery_status_plugin_charging_timeout (gpointer data)
 }
 
 static void
-battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
+battery_status_plugin_charger_connected (BatteryStatusAreaItem *plugin)
 {
     hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_charging"));
     battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-charging_started.wav", FALSE);
+}
 
+static void
+battery_status_plugin_charger_disconnected (BatteryStatusAreaItem *plugin)
+{
+    hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
+}
+
+static void
+battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
+{
     if (plugin->priv->charger_timer == 0)
         plugin->priv->charger_timer = g_timeout_add_seconds (1, battery_status_plugin_charging_timeout, plugin);
 }
@@ -336,8 +349,6 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
     {
         if (plugin->priv->is_charging && plugin->priv->is_discharging)
             hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
-        else if (!plugin->priv->is_charging)
-            hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
 
         g_source_remove (plugin->priv->charger_timer);
         plugin->priv->charger_timer = 0;
@@ -478,10 +489,43 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
 }
 
 static void
+battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
+{
+    gboolean charger_connected = FALSE;
+    char * str = NULL;
+
+    if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
+    {
+        str = libhal_device_get_property_string (plugin->priv->ctx, HAL_BME_UDI, HAL_CONNECTION_STATUS_KEY, NULL);
+        if (str)
+        {
+            if (strcmp (str, "connected") == 0)
+                charger_connected = TRUE;
+            libhal_free_string (str);
+        }
+    }
+    else if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
+    {
+        charger_connected = libhal_device_get_property_bool (plugin->priv->ctx, HAL_BQ_UDI, HAL_IS_CHARGING_KEY, NULL);
+    }
+
+    if (plugin->priv->charger_connected != charger_connected)
+    {
+        plugin->priv->charger_connected = charger_connected;
+        if (charger_connected)
+            battery_status_plugin_charger_connected (plugin);
+        else
+            battery_status_plugin_charger_disconnected (plugin);
+    }
+}
+
+static void
 battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char *udi)
 {
     gboolean is_charging;
     gboolean is_discharging;
+
+    battery_status_plugin_update_charger (plugin);
 
     is_charging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_CHARGING_KEY, NULL);
     is_discharging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_DISCHARGING_KEY, NULL);
@@ -582,7 +626,7 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
 
     if (strcmp (key, HAL_PERCENTAGE_KEY) != 0 && strcmp (key, HAL_CAPACITY_KEY) != 0 && strcmp (key, HAL_CURRENT_KEY) != 0 &&
         strcmp (key, HAL_DESIGN_KEY) != 0 && strcmp (key, HAL_TIME_KEY) != 0 && strcmp (key, HAL_BARS_KEY) != 0 &&
-        strcmp (key, HAL_IS_CHARGING_KEY) != 0 && strcmp (key, HAL_IS_DISCHARGING_KEY) != 0)
+        strcmp (key, HAL_IS_CHARGING_KEY) != 0 && strcmp (key, HAL_IS_DISCHARGING_KEY) != 0 && strcmp (key, HAL_CONNECTION_STATUS_KEY) != 0)
         return;
 
     if (strcmp (udi, HAL_BME_UDI) == 0)
@@ -603,6 +647,9 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
 
         if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
             plugin->priv->bme_last_update = time (NULL);
+
+        if (strcmp (key, HAL_CONNECTION_STATUS_KEY) == 0)
+            battery_status_plugin_update_charger (plugin);
     }
 
     if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update > time (NULL) || plugin->priv->bme_last_update + 15 < time (NULL))
@@ -748,7 +795,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->is_discharging = TRUE;
     plugin->priv->bme_running = FALSE;
 
-    bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, "maemo.bme.version", NULL);
+    bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_BME_VERSION_KEY, NULL);
 
     if (!bme_replacement)
         plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);
