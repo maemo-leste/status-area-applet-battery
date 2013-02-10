@@ -340,7 +340,10 @@ static void
 battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
 {
     if (plugin->priv->charger_timer == 0)
+    {
+        plugin->priv->charging_id = plugin->priv->bars;
         plugin->priv->charger_timer = g_timeout_add_seconds (1, battery_status_plugin_charging_timeout, plugin);
+    }
 }
 
 static void
