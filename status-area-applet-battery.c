@@ -48,6 +48,7 @@
 #define HAL_IS_DISCHARGING_KEY "battery.rechargeable.is_discharging"
 #define HAL_BME_VERSION_KEY "maemo.bme.version"
 #define HAL_CONNECTION_STATUS_KEY "maemo.charger.connection_status"
+#define HAL_POSITIVE_RATE_KEY "maemo.rechargeable.positive_rate"
 
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
@@ -354,6 +355,17 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
         plugin->priv->charger_timer = 0;
     }
 
+    if (plugin->priv->charger_connected && ! (plugin->priv->is_charging && plugin->priv->is_discharging))
+    {
+        if (plugin->priv->bme_running && libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
+        {
+            if (!libhal_device_get_property_bool (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
+                hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ni_consumes_more_than_receives"));
+        }
+        else
+            hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_not_charging"));
+    }
+
     battery_status_plugin_update_icon (plugin, plugin->priv->bars);
 }
 
@@ -515,7 +527,10 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
         if (charger_connected)
             battery_status_plugin_charger_connected (plugin);
         else
+        {
             battery_status_plugin_charger_disconnected (plugin);
+            battery_status_plugin_charging_stop (plugin);
+        }
     }
 }
 
