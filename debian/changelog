@@ -1,3 +1,14 @@
+status-area-applet-battery (1.0-4) fremantle; urgency=low
+
+  * When starting charger animation, set correct first picture
+  * Add support for error in maemo.rechargeable.positive_rate
+  * Add support for charger connected/disconnected events
+  * Ignore reported remaining idle time from dbus when bme is not running or battery is not discharging
+  * Use maemo.bme.version hal key for determinating if using bme replacement
+  * Fix reporting battery low
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Thu, 14 Feb 2013 16:30:07 +0100
+
 status-area-applet-battery (1.0-3) fremantle; urgency=low
 
   * Do not report percentage higher then 100
