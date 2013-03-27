@@ -235,6 +235,8 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
     gchar *ptr;
 
     ptr = text;
+    ptr[0] = 0;
+
     ptr += g_snprintf (ptr, text+sizeof (text)-ptr, "%s: ", dgettext ("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
@@ -251,17 +253,26 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
     gtk_label_set_text (GTK_LABEL (plugin->priv->title), text);
 
     ptr = text;
-    ptr += g_snprintf (ptr, text+sizeof (text)-ptr, "%d/%d mAh", plugin->priv->current, plugin->priv->design);
+    ptr[0] = 0;
 
-    if ((!plugin->priv->is_charging || !plugin->priv->is_discharging) && plugin->priv->active_time)
+    if (plugin->priv->current > 0 && plugin->priv->design > 0)
     {
-        ptr += g_snprintf (ptr, text+sizeof (text)-ptr, "  ");
-        ptr += battery_status_plugin_str_time (plugin, ptr, text+sizeof (text)-ptr, plugin->priv->active_time);
-        if (!plugin->priv->is_charging && plugin->priv->idle_time)
+        ptr += g_snprintf (ptr, text+sizeof (text)-ptr, "%d/%d mAh", plugin->priv->current, plugin->priv->design);
+
+        if ((!plugin->priv->is_charging || !plugin->priv->is_discharging) && plugin->priv->active_time)
         {
-            ptr += g_snprintf (ptr, text+sizeof (text)-ptr, " / ");
-            ptr += battery_status_plugin_str_time (plugin, ptr, text+sizeof (text)-ptr, plugin->priv->idle_time);
+            ptr += g_snprintf (ptr, text+sizeof (text)-ptr, "  ");
+            ptr += battery_status_plugin_str_time (plugin, ptr, text+sizeof (text)-ptr, plugin->priv->active_time);
+            if (!plugin->priv->is_charging && plugin->priv->idle_time)
+            {
+                ptr += g_snprintf (ptr, text+sizeof (text)-ptr, " / ");
+                ptr += battery_status_plugin_str_time (plugin, ptr, text+sizeof (text)-ptr, plugin->priv->idle_time);
+            }
         }
+    }
+    else
+    {
+        ptr += g_snprintf (ptr, text+sizeof (text)-ptr, "No data or battery is not calibrated");
     }
 
     gtk_label_set_text (GTK_LABEL (plugin->priv->value), text);
