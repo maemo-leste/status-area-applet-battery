@@ -1,0 +1,12 @@
+<gconfschemafile>
+	<schemalist>
+		<schema>
+			<key>/schemas/apps/osso/status-area-applet-battery/use_design_capacity</key>
+			<applyto>/apps/osso/status-area-applet-battery/use_design_capacity</applyto>
+			<owner>status-area-applet-battery</owner>
+			<type>int</type>
+			<default>1</default>
+			<locale name="C"/>
+		</schema>
+	</schemalist>
+</gconfschemafile>

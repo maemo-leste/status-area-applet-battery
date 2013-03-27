@@ -35,6 +35,8 @@
 #include <hildon/hildon.h>
 #include <libhildondesktop/libhildondesktop.h>
 
+#include <gconf/gconf-client.h>
+
 #define HAL_BQ_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_bq27200_0"
 #define HAL_RX_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_rx51_battery"
 #define HAL_BME_UDI "/org/freedesktop/Hal/devices/bme"
@@ -42,6 +44,7 @@
 #define HAL_CAPACITY_KEY "battery.charge_level.capacity_state"
 #define HAL_CURRENT_KEY "battery.reporting.current"
 #define HAL_DESIGN_KEY "battery.reporting.design"
+#define HAL_LAST_FULL_KEY "battery.charge_level.last_full"
 #define HAL_TIME_KEY "battery.remaining_time"
 #define HAL_BARS_KEY "battery.charge_level.current"
 #define HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
@@ -49,6 +52,9 @@
 #define HAL_BME_VERSION_KEY "maemo.bme.version"
 #define HAL_CONNECTION_STATUS_KEY "maemo.charger.connection_status"
 #define HAL_POSITIVE_RATE_KEY "maemo.rechargeable.positive_rate"
+
+#define GCONF_PATH "/apps/osso/status-area-applet-battery"
+#define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
 
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
@@ -74,6 +80,8 @@ struct _BatteryStatusAreaItemPrivate
     LibHalContext *ctx;
     ca_context *context;
     ca_proplist *pl;
+    GConfClient *gconf;
+    guint gconf_notify;
     guint bme_timer;
     guint charger_timer;
     guint dbus_timer;
@@ -89,6 +97,7 @@ struct _BatteryStatusAreaItemPrivate
     gboolean charger_connected;
     gboolean verylow;
     gboolean bme_running;
+    gboolean use_design;
     time_t bme_last_update;
     time_t low_last_reported;
 };
@@ -410,6 +419,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     int percentage = 0;
     int current = -1;
     int design = 0;
+    int last_full = 0;
     int active_time = 0;
     int bars = 0;
     gboolean verylow = FALSE;
@@ -419,6 +429,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
         percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_PERCENTAGE_KEY, NULL);
         current = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_CURRENT_KEY, NULL);
         design = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_DESIGN_KEY, NULL);
+        last_full = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_LAST_FULL_KEY, NULL);
         active_time = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_TIME_KEY, NULL);
         bars = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_BARS_KEY, NULL);
 
@@ -431,9 +442,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
         percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_PERCENTAGE_KEY, NULL);
         current = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_CURRENT_KEY, NULL);
         active_time = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_TIME_KEY, NULL);
-
-        if (design == 0)
-            design = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, "battery.charge_level.last_full", NULL);
+        last_full = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_LAST_FULL_KEY, NULL);
 
         if (current > 0 && current <= 80)
             verylow = TRUE;
@@ -456,6 +465,18 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
         if (design > 0 && plugin->priv->design > 0 && abs (plugin->priv->design - design) < 100)
             design = plugin->priv->design;
     }
+
+    if (last_full < 0)
+        last_full = 0;
+
+    if (design == 0)
+        design = last_full;
+
+    if (plugin->priv->use_design != 2 && current != -1)
+        design = last_full;
+
+    if (plugin->priv->use_design == 0 && current == -1)
+        design = 0;
 
     if (current > 0 && design > 0)
         percentage = 100 * current / design;
@@ -619,6 +640,21 @@ battery_status_plugin_bme_process_timeout (gpointer data)
 }
 
 static void
+battery_status_plugin_gconf_notify (GConfClient * client G_GNUC_UNUSED, guint cnxn_id G_GNUC_UNUSED, GConfEntry * entry, gpointer data)
+{
+    BatteryStatusAreaItem *plugin = data;
+    const char *key = gconf_entry_get_key (entry);
+    GConfValue *value = gconf_entry_get_value (entry);
+
+    if (strcmp (key, GCONF_USE_DESIGN_KEY) != 0)
+        return;
+
+    plugin->priv->use_design = gconf_value_get_int (value);
+    plugin->priv->design = 0;
+    battery_status_plugin_update_values (plugin);
+}
+
+static void
 battery_status_plugin_hal_device_modified_cb (LibHalContext *ctx, const char *udi)
 {
     BatteryStatusAreaItem *plugin = libhal_ctx_get_user_data (ctx);
@@ -745,6 +781,16 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         return;
     }
 
+    plugin->priv->gconf = gconf_client_get_default ();
+    if (!plugin->priv->gconf)
+    {
+        g_warning ("Could not get gconf client");
+        return;
+    }
+
+    gconf_client_add_dir (plugin->priv->gconf, GCONF_PATH, GCONF_CLIENT_PRELOAD_NONE, NULL);
+    plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+
     plugin->priv->title = gtk_label_new (NULL);
     if (!plugin->priv->title)
     {
@@ -824,6 +870,8 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->is_discharging = TRUE;
     plugin->priv->bme_running = FALSE;
 
+    plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
+
     bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_BME_VERSION_KEY, NULL);
 
     if (!bme_replacement)
@@ -871,6 +919,19 @@ battery_status_plugin_finalize (GObject *object)
     {
         ca_context_destroy (plugin->priv->context);
         plugin->priv->context = NULL;
+    }
+
+    if (plugin->priv->gconf)
+    {
+        if (plugin->priv->gconf_notify)
+        {
+            gconf_client_notify_remove (plugin->priv->gconf, plugin->priv->gconf_notify);
+            plugin->priv->gconf_notify = 0;
+        }
+        gconf_client_remove_dir (plugin->priv->gconf, GCONF_PATH, NULL);
+        gconf_client_clear_cache (plugin->priv->gconf);
+        g_object_unref (plugin->priv->gconf);
+        plugin->priv->gconf = NULL;
     }
 
     if (plugin->priv->ctx)
