@@ -1,3 +1,10 @@
+status-area-applet-battery (1.0-5) fremantle; urgency=low
+
+  * Added gconf key for enabling/disabling reporting last full capacity instead design
+  * Instead 0/0 show info that battery is not calibrated
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Wed, 27 Mar 2013 17:17:30 +0100
+
 status-area-applet-battery (1.0-4) fremantle; urgency=low
 
   * When starting charger animation, set correct first picture
