@@ -422,6 +422,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     int last_full = 0;
     int active_time = 0;
     int bars = 0;
+    int val;
     gboolean verylow = FALSE;
 
     if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
@@ -439,15 +440,17 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
 
     if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
     {
-        percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_PERCENTAGE_KEY, NULL);
-        current = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_CURRENT_KEY, NULL);
-        active_time = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_TIME_KEY, NULL);
-        last_full = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_LAST_FULL_KEY, NULL);
+        val = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_CURRENT_KEY, NULL);
+        if (val != 0)
+        {
+            current = val;
+            percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_PERCENTAGE_KEY, NULL);
+            active_time = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_TIME_KEY, NULL);
+            last_full = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_LAST_FULL_KEY, NULL);
 
-        if (current > 0 && current <= 80)
-            verylow = TRUE;
-        else if (current == 0)
-            current = -1;
+            if (current > 0 && current <= 80)
+                verylow = TRUE;
+        }
     }
     else if (!plugin->priv->bme_running)
     {
