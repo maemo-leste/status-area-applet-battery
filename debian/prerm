@@ -1,0 +1,4 @@
+#!/bin/sh
+if [ "$1" = remove ] || [ "$1" = upgrade ]; then
+	gconf-schemas --unregister status-area-applet-battery.schemas
+fi

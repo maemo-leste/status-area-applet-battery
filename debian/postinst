@@ -1,0 +1,4 @@
+#!/bin/sh
+if [ "$1" = "configure" ]; then
+	gconf-schemas --register status-area-applet-battery.schemas
+fi
