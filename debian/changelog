@@ -1,3 +1,10 @@
+status-area-applet-battery (1.0-7) fremantle; urgency=low
+
+  * Fixed value for HAL_LAST_FULL_KEY - this caused that battery applet without bme replacement did not reported any data
+  * If using bme replacement do not watch for bq27x00_battery and rx51_battery drivers, but always use data from replacement hald-addon-bme
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Thu, 09 May 2013 11:02:16 +0200
+
 status-area-applet-battery (1.0-6) fremantle; urgency=low
 
   * Do not use data from bq27200 chip if battery is not calibrated (BME still can provide data)
