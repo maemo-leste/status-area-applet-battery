@@ -97,6 +97,7 @@ struct _BatteryStatusAreaItemPrivate
     gboolean charger_connected;
     gboolean verylow;
     gboolean bme_running;
+    gboolean bme_replacement;
     gboolean use_design;
     time_t bme_last_update;
     time_t low_last_reported;
@@ -441,7 +442,12 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
     {
         val = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_CURRENT_KEY, NULL);
-        if (val != 0)
+        if (plugin->priv->bme_replacement)
+        {
+            if (val == 0)
+                current = -1;
+        }
+        else if (val != 0)
         {
             current = val;
             percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_PERCENTAGE_KEY, NULL);
@@ -462,11 +468,18 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
         plugin->priv->is_discharging = TRUE;
     }
 
-    if (libhal_device_exists (plugin->priv->ctx, HAL_RX_UDI, NULL))
+    if (!plugin->priv->bme_replacement)
     {
-        design = libhal_device_get_property_int (plugin->priv->ctx, HAL_RX_UDI, HAL_DESIGN_KEY, NULL);
-        if (design > 0 && plugin->priv->design > 0 && abs (plugin->priv->design - design) < 100)
-            design = plugin->priv->design;
+        if (libhal_device_exists (plugin->priv->ctx, HAL_RX_UDI, NULL))
+        {
+            val = libhal_device_get_property_int (plugin->priv->ctx, HAL_RX_UDI, HAL_DESIGN_KEY, NULL);
+            if (val >= current)
+            {
+                design = val;
+                if (design > 0 && plugin->priv->design > 0 && abs (plugin->priv->design - design) < 100)
+                    design = plugin->priv->design;
+            }
+        }
     }
 
     if (last_full < 0)
@@ -475,7 +488,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     if (design == 0)
         design = last_full;
 
-    if (plugin->priv->use_design != 2 && current != -1)
+    if (plugin->priv->use_design != 2 && current != -1 && last_full != 0)
         design = last_full;
 
     if (plugin->priv->use_design == 0 && current == -1)
@@ -554,7 +567,7 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
             libhal_free_string (str);
         }
     }
-    else if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
+    else if (!plugin->priv->bme_replacement && libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
     {
         charger_connected = libhal_device_get_property_bool (plugin->priv->ctx, HAL_BQ_UDI, HAL_IS_CHARGING_KEY, NULL);
     }
@@ -662,6 +675,9 @@ battery_status_plugin_hal_device_modified_cb (LibHalContext *ctx, const char *ud
 {
     BatteryStatusAreaItem *plugin = libhal_ctx_get_user_data (ctx);
 
+    if (plugin->priv->bme_replacement && strcmp (udi, HAL_BME_UDI) != 0)
+        return;
+
     if (strcmp (udi, HAL_BQ_UDI) != 0 && strcmp (udi, HAL_RX_UDI) != 0 && strcmp (udi, HAL_BME_UDI) != 0)
         return;
 
@@ -731,7 +747,6 @@ static void
 battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 {
     DBusError error;
-    gboolean bme_replacement;
     GtkWidget *alignment;
     GtkWidget *hbox;
     GtkWidget *label_box;
@@ -764,8 +779,15 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     libhal_ctx_set_device_removed (plugin->priv->ctx, battery_status_plugin_hal_device_modified_cb);
     libhal_ctx_set_device_property_modified (plugin->priv->ctx, battery_status_plugin_hal_property_modified_cb);
     libhal_ctx_init (plugin->priv->ctx, NULL);
-    libhal_device_add_property_watch (plugin->priv->ctx, HAL_BQ_UDI, NULL);
-    libhal_device_add_property_watch (plugin->priv->ctx, HAL_RX_UDI, NULL);
+
+    plugin->priv->bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_BME_VERSION_KEY, NULL);
+
+    if (!plugin->priv->bme_replacement)
+    {
+        libhal_device_add_property_watch (plugin->priv->ctx, HAL_BQ_UDI, NULL);
+        libhal_device_add_property_watch (plugin->priv->ctx, HAL_RX_UDI, NULL);
+    }
+
     libhal_device_add_property_watch (plugin->priv->ctx, HAL_BME_UDI, NULL);
 
     plugin->priv->context = NULL;
@@ -875,9 +897,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
 
-    bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_BME_VERSION_KEY, NULL);
-
-    if (!bme_replacement)
+    if (!plugin->priv->bme_replacement)
         plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);
     else
     {
@@ -897,7 +917,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     battery_status_plugin_update_icon (plugin, 0);
     battery_status_plugin_update_text (plugin);
 
-    if (!bme_replacement)
+    if (!plugin->priv->bme_replacement)
        battery_status_plugin_bme_process_timeout (plugin);
 
     battery_status_plugin_update_values (plugin);
