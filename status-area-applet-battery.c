@@ -44,7 +44,7 @@
 #define HAL_CAPACITY_KEY "battery.charge_level.capacity_state"
 #define HAL_CURRENT_KEY "battery.reporting.current"
 #define HAL_DESIGN_KEY "battery.reporting.design"
-#define HAL_LAST_FULL_KEY "battery.charge_level.last_full"
+#define HAL_LAST_FULL_KEY "battery.reporting.last_full"
 #define HAL_TIME_KEY "battery.remaining_time"
 #define HAL_BARS_KEY "battery.charge_level.current"
 #define HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
