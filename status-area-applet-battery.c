@@ -339,6 +339,12 @@ battery_status_plugin_charging_timeout (gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
 
+    if (!plugin->priv->charger_timer)
+        return FALSE;
+
+    if (plugin->priv->is_charging && plugin->priv->is_discharging)
+        return FALSE;
+
     plugin->priv->charging_id = plugin->priv->charging_id % 8 + 1; /* id is 1..8 */
     battery_status_plugin_update_icon (plugin, plugin->priv->charging_id);
     return TRUE;
@@ -390,7 +396,10 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
             hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_not_charging"));
     }
 
-    battery_status_plugin_update_icon (plugin, plugin->priv->bars);
+    if (plugin->priv->is_charging && plugin->priv->is_discharging)
+        battery_status_plugin_update_icon (plugin, 8);
+    else
+        battery_status_plugin_update_icon (plugin, plugin->priv->bars);
 }
 
 static void
@@ -533,7 +542,9 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     if (plugin->priv->bars != bars)
     {
         plugin->priv->bars = bars;
-        if (plugin->priv->is_discharging)
+        if (plugin->priv->is_charging && plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, 8);
+        else if (plugin->priv->is_discharging)
             battery_status_plugin_update_icon (plugin, bars);
     }
 
@@ -713,10 +724,22 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
         strcmp (key, HAL_IS_CHARGING_KEY) != 0 && strcmp (key, HAL_IS_DISCHARGING_KEY) != 0 && strcmp (key, HAL_CONNECTION_STATUS_KEY) != 0)
         return;
 
+    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update > time (NULL) || plugin->priv->bme_last_update + 15 < time (NULL))
+        if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
+            battery_status_plugin_update_charging (plugin, udi);
+
+    battery_status_plugin_update_values (plugin);
+
     if (strcmp (udi, HAL_BME_UDI) == 0)
     {
         if (!plugin->priv->bme_running)
             battery_status_plugin_bme_process_timeout (plugin);
+
+        if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
+            plugin->priv->bme_last_update = time (NULL);
+
+        if (strcmp (key, HAL_CONNECTION_STATUS_KEY) == 0)
+            battery_status_plugin_update_charger (plugin);
 
         if (strcmp (key, HAL_CAPACITY_KEY) == 0)
         {
@@ -728,19 +751,7 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
             else if (strcmp (str, "full") == 0)
                 battery_status_plugin_update_icon (plugin, 8);
         }
-
-        if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
-            plugin->priv->bme_last_update = time (NULL);
-
-        if (strcmp (key, HAL_CONNECTION_STATUS_KEY) == 0)
-            battery_status_plugin_update_charger (plugin);
     }
-
-    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update > time (NULL) || plugin->priv->bme_last_update + 15 < time (NULL))
-        if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
-            battery_status_plugin_update_charging (plugin, udi);
-
-    battery_status_plugin_update_values (plugin);
 }
 
 static void
