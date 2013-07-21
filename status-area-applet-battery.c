@@ -96,6 +96,7 @@ struct _BatteryStatusAreaItemPrivate
     gboolean is_discharging;
     gboolean charger_connected;
     gboolean verylow;
+    gboolean display_is_off;
     gboolean bme_running;
     gboolean bme_replacement;
     gboolean use_design;
@@ -143,6 +144,9 @@ battery_status_plugin_update_icon (BatteryStatusAreaItem *plugin, int id)
     const char *name;
     GdkPixbuf *pixbuf;
     GtkIconTheme *icon_theme;
+
+    if (plugin->priv->display_is_off)
+        return;
 
     switch (id)
     {
@@ -243,6 +247,9 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
 {
     gchar text[64];
     gchar *ptr;
+
+    if (plugin->priv->display_is_off)
+        return;
 
     ptr = text;
     ptr[0] = 0;
@@ -364,8 +371,11 @@ battery_status_plugin_charger_disconnected (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_maybe_start (BatteryStatusAreaItem *plugin)
 {
+    if (plugin->priv->display_is_off || !plugin->priv->is_charging || plugin->priv->is_discharging)
+        return;
+
     if (plugin->priv->charger_timer == 0)
     {
         plugin->priv->charging_id = plugin->priv->bars;
@@ -374,16 +384,28 @@ battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_maybe_stop (BatteryStatusAreaItem *plugin)
 {
     if (plugin->priv->charger_timer > 0)
     {
-        if (plugin->priv->is_charging && plugin->priv->is_discharging)
-            hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
-
         g_source_remove (plugin->priv->charger_timer);
         plugin->priv->charger_timer = 0;
     }
+}
+
+static void
+battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
+{
+    battery_status_plugin_animation_maybe_start (plugin);
+}
+
+static void
+battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
+{
+    if (plugin->priv->charger_timer > 0 && plugin->priv->is_charging && plugin->priv->is_discharging)
+        hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
+
+    battery_status_plugin_animation_maybe_stop (plugin);
 
     if (plugin->priv->charger_connected && ! (plugin->priv->is_charging && plugin->priv->is_discharging))
     {
@@ -400,6 +422,40 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
         battery_status_plugin_update_icon (plugin, 8);
     else
         battery_status_plugin_update_icon (plugin, plugin->priv->bars);
+}
+
+static DBusHandlerResult
+battery_status_plugin_dbus_display (DBusConnection *connection G_GNUC_UNUSED, DBusMessage *message, void *data)
+{
+    BatteryStatusAreaItem *plugin = data;
+    char *status = NULL;
+    gboolean display_is_off = FALSE;
+
+    if (!dbus_message_is_signal (message, "com.nokia.mce.signal", "display_status_ind"))
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+    if (g_strcmp0 (dbus_message_get_path (message), "/com/nokia/mce/signal"))
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+    if (!dbus_message_get_args (message, NULL, DBUS_TYPE_STRING, &status, DBUS_TYPE_INVALID))
+        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+    if (g_strcmp0 (status, "off") == 0)
+        display_is_off = TRUE;
+
+    if (display_is_off && !plugin->priv->display_is_off)
+    {
+        plugin->priv->display_is_off = TRUE;
+        battery_status_plugin_animation_maybe_stop (plugin);
+    }
+    else if (!display_is_off && plugin->priv->display_is_off)
+    {
+        plugin->priv->display_is_off = FALSE;
+        battery_status_plugin_animation_maybe_start (plugin);
+        battery_status_plugin_update_text (plugin);
+    }
+
+    return DBUS_HANDLER_RESULT_HANDLED;
 }
 
 static void
@@ -905,6 +961,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     plugin->priv->is_discharging = TRUE;
     plugin->priv->bme_running = FALSE;
+    plugin->priv->display_is_off = FALSE;
 
     plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
 
@@ -932,6 +989,9 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
        battery_status_plugin_bme_process_timeout (plugin);
 
     battery_status_plugin_update_values (plugin);
+
+    dbus_bus_add_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
+    dbus_connection_add_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
 
     gtk_container_add (GTK_CONTAINER (plugin), alignment);
     gtk_widget_show_all (GTK_WIDGET (plugin));
@@ -999,6 +1059,9 @@ battery_status_plugin_finalize (GObject *object)
         g_source_remove (plugin->priv->dbus_timer);
         plugin->priv->dbus_timer = 0;
     }
+
+    dbus_bus_remove_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
+    dbus_connection_remove_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin);
 
     hd_status_plugin_item_set_status_area_icon (HD_STATUS_PLUGIN_ITEM (plugin), NULL);
 
