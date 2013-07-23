@@ -705,7 +705,8 @@ battery_status_plugin_bme_process_timeout (gpointer data)
         }
         else
         {
-            if (plugin->priv->dbus_timer > 0) {
+            if (plugin->priv->dbus_timer > 0)
+            {
                 dbus_bus_remove_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/bme/signal',interface='com.nokia.bme.signal',member='battery_timeleft'", NULL);
                 dbus_connection_remove_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_proxy, plugin);
                 g_source_remove (plugin->priv->dbus_timer);
@@ -1053,7 +1054,8 @@ battery_status_plugin_finalize (GObject *object)
         plugin->priv->charger_timer = 0;
     }
 
-    if (plugin->priv->dbus_timer > 0) {
+    if (plugin->priv->dbus_timer > 0)
+    {
         dbus_bus_remove_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/bme/signal',interface='com.nokia.bme.signal',member='battery_timeleft'", NULL);
         dbus_connection_remove_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_proxy, plugin);
         g_source_remove (plugin->priv->dbus_timer);
