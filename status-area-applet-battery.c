@@ -453,6 +453,10 @@ battery_status_plugin_dbus_display (DBusConnection *connection G_GNUC_UNUSED, DB
         plugin->priv->display_is_off = FALSE;
         battery_status_plugin_animation_maybe_start (plugin);
         battery_status_plugin_update_text (plugin);
+        if (plugin->priv->is_charging && plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, 8);
+        else if (plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, plugin->priv->bars);
     }
 
     return DBUS_HANDLER_RESULT_HANDLED;
