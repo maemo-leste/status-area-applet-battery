@@ -551,6 +551,9 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
         }
     }
 
+    if (!plugin->priv->bme_replacement)
+        last_full = 0;
+
     if (last_full < 0)
         last_full = 0;
 
