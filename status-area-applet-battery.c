@@ -55,6 +55,7 @@
 
 #define GCONF_PATH "/apps/osso/status-area-applet-battery"
 #define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
+#define GCONF_SHOW_CHARGE_CHARGING_KEY GCONF_PATH "/show_charge_charging"
 
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
@@ -100,6 +101,7 @@ struct _BatteryStatusAreaItemPrivate
     gboolean bme_running;
     gboolean bme_replacement;
     gboolean use_design;
+    gboolean show_charge_charging;
     time_t bme_last_update;
     time_t low_last_reported;
 };
@@ -345,6 +347,7 @@ static gboolean
 battery_status_plugin_charging_timeout (gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
+    int bars = plugin->priv->bars;
 
     if (!plugin->priv->charger_timer)
         return FALSE;
@@ -352,7 +355,13 @@ battery_status_plugin_charging_timeout (gpointer data)
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
         return FALSE;
 
-    plugin->priv->charging_id = plugin->priv->charging_id % 8 + 1; /* id is 1..8 */
+    if (bars == 0 || !plugin->priv->show_charge_charging)
+        plugin->priv->charging_id = 1 + plugin->priv->charging_id % 8; /* id is 1..8 */
+    else if (bars == 8)
+        plugin->priv->charging_id = 7 + plugin->priv->charging_id % 2; /* id is 7..8 */
+    else
+        plugin->priv->charging_id = bars + ( plugin->priv->charging_id - bars + 1 ) % ( 9 - bars ); /* id is bars..8 */
+
     battery_status_plugin_update_icon (plugin, plugin->priv->charging_id);
     return TRUE;
 }
@@ -737,12 +746,17 @@ battery_status_plugin_gconf_notify (GConfClient * client G_GNUC_UNUSED, guint cn
     const char *key = gconf_entry_get_key (entry);
     GConfValue *value = gconf_entry_get_value (entry);
 
-    if (strcmp (key, GCONF_USE_DESIGN_KEY) != 0)
-        return;
-
-    plugin->priv->use_design = gconf_value_get_int (value);
-    plugin->priv->design = 0;
-    battery_status_plugin_update_values (plugin);
+    if (strcmp (key, GCONF_USE_DESIGN_KEY) == 0)
+    {
+        plugin->priv->use_design = gconf_value_get_int (value);
+        plugin->priv->design = 0;
+        battery_status_plugin_update_values (plugin);
+    }
+    else if (strcmp (key, GCONF_SHOW_CHARGE_CHARGING_KEY) == 0)
+    {
+        plugin->priv->show_charge_charging = gconf_value_get_bool (value);
+        battery_status_plugin_update_values (plugin);
+    }
 }
 
 static void
@@ -890,6 +904,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     gconf_client_add_dir (plugin->priv->gconf, GCONF_PATH, GCONF_CLIENT_PRELOAD_NONE, NULL);
     plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+    plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
 
     plugin->priv->title = gtk_label_new (NULL);
     if (!plugin->priv->title)
@@ -972,6 +987,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->display_is_off = FALSE;
 
     plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
+    plugin->priv->show_charge_charging = gconf_client_get_bool (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
 
     if (!plugin->priv->bme_replacement)
         plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);

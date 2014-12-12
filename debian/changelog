@@ -1,3 +1,11 @@
+status-area-applet-battery (1.0-10) fremantle; urgency=low
+
+  * When charging, reflect charge status in icon (e.g. battery half full: only upper half of icon animated);
+    can be enabled/disabled with gconf key /apps/osso/status-area-applet-battery/show_charge_charging
+    (patch by Jakob Schröter <js@camaya.net>)
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Sat, 07 Mar 2015 12:32:23 +0100
+
 status-area-applet-battery (1.0-9) fremantle; urgency=low
 
   * Nokia BME reporting incorrect last_full property, so do not use it

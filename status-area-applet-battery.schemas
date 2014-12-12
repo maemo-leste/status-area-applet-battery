@@ -8,5 +8,13 @@
 			<default>1</default>
 			<locale name="C"/>
 		</schema>
+		<schema>
+			<key>/schemas/apps/osso/status-area-applet-battery/show_charge_charging</key>
+			<applyto>/apps/osso/status-area-applet-battery/show_charge_charging</applyto>
+			<owner>status-area-applet-battery</owner>
+			<type>bool</type>
+			<default>0</default>
+			<locale name="C"/>
+		</schema>
 	</schemalist>
 </gconfschemafile>
