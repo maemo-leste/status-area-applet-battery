@@ -1,3 +1,11 @@
+status-area-applet-battery (1.0-11) fremantle; urgency=low
+
+  * Fix crashing after unset gconf value
+  * Add gconf key for spawning application on click
+    /apps/osso/status-area-applet-battery/exec_application
+
+ -- Pali Rohár <pali.rohar@gmail.com>  Sat, 26 Dec 2015 22:10:35 +0100
+
 status-area-applet-battery (1.0-10) fremantle; urgency=low
 
   * When charging, reflect charge status in icon (e.g. battery half full: only upper half of icon animated);
