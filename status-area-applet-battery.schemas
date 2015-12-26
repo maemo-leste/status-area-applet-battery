@@ -16,5 +16,13 @@
 			<default>0</default>
 			<locale name="C"/>
 		</schema>
+		<schema>
+			<key>/schemas/apps/osso/status-area-applet-battery/exec_application</key>
+			<applyto>/apps/osso/status-area-applet-battery/exec_application</applyto>
+			<owner>status-area-applet-battery</owner>
+			<type>string</type>
+			<default></default>
+			<locale name="C"/>
+		</schema>
 	</schemalist>
 </gconfschemafile>

@@ -56,6 +56,7 @@
 #define GCONF_PATH "/apps/osso/status-area-applet-battery"
 #define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
 #define GCONF_SHOW_CHARGE_CHARGING_KEY GCONF_PATH "/show_charge_charging"
+#define GCONF_EXEC_APPLICATION GCONF_PATH "/exec_application"
 
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
@@ -104,6 +105,7 @@ struct _BatteryStatusAreaItemPrivate
     gboolean show_charge_charging;
     time_t bme_last_update;
     time_t low_last_reported;
+    const char *exec_application;
 };
 
 GType battery_status_plugin_get_type (void);
@@ -757,6 +759,10 @@ battery_status_plugin_gconf_notify (GConfClient * client G_GNUC_UNUSED, guint cn
         plugin->priv->show_charge_charging = gconf_value_get_bool (value);
         battery_status_plugin_update_values (plugin);
     }
+    else if (strcmp (key, GCONF_EXEC_APPLICATION) == 0)
+    {
+        plugin->priv->exec_application = gconf_value_get_string (value);
+    }
 }
 
 static void
@@ -832,6 +838,17 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
     }
 }
 
+static gboolean
+battery_status_plugin_on_button_clicked_cb (GtkWidget *widget G_GNUC_UNUSED, GdkEvent *event G_GNUC_UNUSED, gpointer user_data)
+{
+    BatteryStatusAreaItem *plugin = user_data;
+
+    if (plugin->priv->exec_application && plugin->priv->exec_application[0])
+        g_spawn_command_line_async (plugin->priv->exec_application, NULL);
+
+    return TRUE;
+}
+
 static void
 battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 {
@@ -839,6 +856,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     GtkWidget *alignment;
     GtkWidget *hbox;
     GtkWidget *label_box;
+    GtkWidget *event_box;
     GtkStyle *style;
 
     plugin->priv = G_TYPE_INSTANCE_GET_PRIVATE (plugin, battery_status_plugin_get_type (), BatteryStatusAreaItemPrivate);
@@ -905,6 +923,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     gconf_client_add_dir (plugin->priv->gconf, GCONF_PATH, GCONF_CLIENT_PRELOAD_NONE, NULL);
     plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
     plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+    plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_EXEC_APPLICATION, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
 
     plugin->priv->title = gtk_label_new (NULL);
     if (!plugin->priv->title)
@@ -940,6 +959,17 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         return;
     }
 
+    event_box = gtk_event_box_new ();
+    if (!event_box)
+    {
+        g_warning ("Could not create GtkEventBox");
+        gtk_widget_destroy (plugin->priv->title);
+        gtk_widget_destroy (plugin->priv->value);
+        gtk_widget_destroy (plugin->priv->image);
+        gtk_widget_destroy (alignment);
+        return;
+    }
+
     hbox = gtk_hbox_new (FALSE, 0);
     if (!hbox)
     {
@@ -948,6 +978,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         gtk_widget_destroy (plugin->priv->value);
         gtk_widget_destroy (plugin->priv->image);
         gtk_widget_destroy (alignment);
+        gtk_widget_destroy (event_box);
         return;
     }
 
@@ -959,6 +990,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         gtk_widget_destroy (plugin->priv->value);
         gtk_widget_destroy (plugin->priv->image);
         gtk_widget_destroy (alignment);
+        gtk_widget_destroy (event_box);
         gtk_widget_destroy (hbox);
         return;
     }
@@ -982,12 +1014,17 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     gtk_container_add (GTK_CONTAINER (alignment), hbox);
 
+    gtk_container_add (GTK_CONTAINER (event_box), alignment);
+    gtk_widget_set_events (event_box, GDK_BUTTON_PRESS_MASK);
+    g_signal_connect_after (G_OBJECT (event_box), "button-press-event", G_CALLBACK (battery_status_plugin_on_button_clicked_cb), plugin);
+
     plugin->priv->is_discharging = TRUE;
     plugin->priv->bme_running = FALSE;
     plugin->priv->display_is_off = FALSE;
 
     plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
     plugin->priv->show_charge_charging = gconf_client_get_bool (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
+    plugin->priv->exec_application = gconf_client_get_string (plugin->priv->gconf, GCONF_EXEC_APPLICATION, NULL);
 
     if (!plugin->priv->bme_replacement)
         plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);
@@ -1017,7 +1054,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     dbus_bus_add_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
     dbus_connection_add_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
 
-    gtk_container_add (GTK_CONTAINER (plugin), alignment);
+    gtk_container_add (GTK_CONTAINER (plugin), event_box);
     gtk_widget_show_all (GTK_WIDGET (plugin));
 
 }
