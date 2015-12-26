@@ -750,18 +750,18 @@ battery_status_plugin_gconf_notify (GConfClient * client G_GNUC_UNUSED, guint cn
 
     if (strcmp (key, GCONF_USE_DESIGN_KEY) == 0)
     {
-        plugin->priv->use_design = gconf_value_get_int (value);
+        plugin->priv->use_design = value ? gconf_value_get_int (value) : 1;
         plugin->priv->design = 0;
         battery_status_plugin_update_values (plugin);
     }
     else if (strcmp (key, GCONF_SHOW_CHARGE_CHARGING_KEY) == 0)
     {
-        plugin->priv->show_charge_charging = gconf_value_get_bool (value);
+        plugin->priv->show_charge_charging = value ? gconf_value_get_bool (value) : FALSE;
         battery_status_plugin_update_values (plugin);
     }
     else if (strcmp (key, GCONF_EXEC_APPLICATION) == 0)
     {
-        plugin->priv->exec_application = gconf_value_get_string (value);
+        plugin->priv->exec_application = value ? gconf_value_get_string (value) : NULL;
     }
 }
 
