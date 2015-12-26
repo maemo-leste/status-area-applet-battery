@@ -952,7 +952,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     }
 
     label_box = gtk_vbox_new (FALSE, 0);
-    if (!hbox)
+    if (!label_box)
     {
         g_warning ("Could not create GtkVBox");
         gtk_widget_destroy (plugin->priv->title);
