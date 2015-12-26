@@ -640,7 +640,7 @@ static void
 battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
 {
     gboolean charger_connected = FALSE;
-    char * str = NULL;
+    char *str = NULL;
 
     if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
     {
@@ -742,7 +742,7 @@ battery_status_plugin_bme_process_timeout (gpointer data)
 }
 
 static void
-battery_status_plugin_gconf_notify (GConfClient * client G_GNUC_UNUSED, guint cnxn_id G_GNUC_UNUSED, GConfEntry * entry, gpointer data)
+battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnxn_id G_GNUC_UNUSED, GConfEntry *entry, gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
     const char *key = gconf_entry_get_key (entry);
