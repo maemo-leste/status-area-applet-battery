@@ -12,6 +12,6 @@ clean:
 	$(RM) status-area-applet-battery.so
 
 status-area-applet-battery.so: status-area-applet-battery.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs hildon-1 libcanberra profile libhildondesktop-1 dbus-1 hal) -W -Wall -O2 -shared $^ -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs hildon-1 libcanberra profile libhildondesktop-1 dbus-1) -W -Wall -O2 -shared $^ -o $@
 
 .PHONY: all install clean

@@ -24,10 +24,15 @@
 #include <string.h>
 #include <time.h>
 
+//#define USE_HAL
+
 #include <libintl.h>
 
 #include <dbus/dbus.h>
+#ifdef USE_HAL
 #include <hal/libhal.h>
+#endif
+
 #include <profiled/libprofile.h>
 #include <canberra.h>
 
@@ -35,8 +40,11 @@
 #include <hildon/hildon.h>
 #include <libhildondesktop/libhildondesktop.h>
 
+#ifdef USE_GCONF
 #include <gconf/gconf-client.h>
+#endif
 
+#ifdef USE_HAL
 #define HAL_BQ_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_bq27200_0"
 #define HAL_RX_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_rx51_battery"
 #define HAL_BME_UDI "/org/freedesktop/Hal/devices/bme"
@@ -52,6 +60,7 @@
 #define HAL_BME_VERSION_KEY "maemo.bme.version"
 #define HAL_CONNECTION_STATUS_KEY "maemo.charger.connection_status"
 #define HAL_POSITIVE_RATE_KEY "maemo.rechargeable.positive_rate"
+#endif
 
 #define GCONF_PATH "/apps/osso/status-area-applet-battery"
 #define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
@@ -79,11 +88,15 @@ struct _BatteryStatusAreaItemPrivate
     GtkWidget *value;
     GtkWidget *image;
     DBusConnection *sysbus_conn;
+#ifdef USE_HAL
     LibHalContext *ctx;
+#endif
     ca_context *context;
     ca_proplist *pl;
+#ifdef USE_GCONF
     GConfClient *gconf;
     guint gconf_notify;
+#endif
     guint bme_timer;
     guint charger_timer;
     guint dbus_timer;
@@ -299,6 +312,7 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
     gtk_label_set_text (GTK_LABEL (plugin->priv->value), text);
 }
 
+
 static DBusHandlerResult
 battery_status_plugin_dbus_proxy (DBusConnection *connection G_GNUC_UNUSED, DBusMessage *message, void *data)
 {
@@ -333,6 +347,7 @@ battery_status_plugin_dbus_timeout (gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
     DBusMessage *message;
+#if 0
 
     message = dbus_message_new_method_call ("com.nokia.bme", "/com/nokia/bme/request", "com.nokia.bme.request", "timeleft_info_req");
     if (!message)
@@ -343,6 +358,8 @@ battery_status_plugin_dbus_timeout (gpointer data)
     dbus_message_unref (message);
 
     return TRUE;
+#endif
+    return TRUE;
 }
 
 static gboolean
@@ -350,6 +367,7 @@ battery_status_plugin_charging_timeout (gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
     int bars = plugin->priv->bars;
+#if 0
 
     if (!plugin->priv->charger_timer)
         return FALSE;
@@ -363,6 +381,7 @@ battery_status_plugin_charging_timeout (gpointer data)
         plugin->priv->charging_id = 7 + plugin->priv->charging_id % 2; /* id is 7..8 */
     else
         plugin->priv->charging_id = bars + ( plugin->priv->charging_id - bars + 1 ) % ( 9 - bars ); /* id is bars..8 */
+#endif
 
     battery_status_plugin_update_icon (plugin, plugin->priv->charging_id);
     return TRUE;
@@ -420,6 +439,7 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
 
     if (plugin->priv->charger_connected && ! (plugin->priv->is_charging && plugin->priv->is_discharging))
     {
+#ifdef USE_HAL
         if (plugin->priv->bme_running && libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
         {
             if (!libhal_device_get_property_bool (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
@@ -427,6 +447,7 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
         }
         else
             hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_not_charging"));
+#endif
     }
 
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
@@ -506,6 +527,7 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     int val;
     gboolean verylow = FALSE;
 
+#ifdef USE_HAL
     if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
     {
         percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_PERCENTAGE_KEY, NULL);
@@ -627,6 +649,12 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
 
     if (plugin->priv->active_time == 0 && active_time != 0)
         battery_status_plugin_dbus_timeout (plugin);
+#endif
+
+    percentage = 42;
+    current = 70;
+    design = 100;
+    active_time = 600000;
 
     plugin->priv->percentage = percentage;
     plugin->priv->current = current;
@@ -642,6 +670,7 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
     gboolean charger_connected = FALSE;
     char *str = NULL;
 
+#ifdef USE_HAL
     if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
     {
         str = libhal_device_get_property_string (plugin->priv->ctx, HAL_BME_UDI, HAL_CONNECTION_STATUS_KEY, NULL);
@@ -656,6 +685,7 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
     {
         charger_connected = libhal_device_get_property_bool (plugin->priv->ctx, HAL_BQ_UDI, HAL_IS_CHARGING_KEY, NULL);
     }
+#endif
 
     if (plugin->priv->charger_connected != charger_connected)
     {
@@ -678,17 +708,24 @@ battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char
 
     battery_status_plugin_update_charger (plugin);
 
+#ifdef USE_HAL
     is_charging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_CHARGING_KEY, NULL);
     is_discharging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_DISCHARGING_KEY, NULL);
+#else
+    is_charging = TRUE;
+    is_discharging = FALSE;
+#endif
 
     if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging)
     {
         if (!is_charging && !is_discharging)
         {
+#ifdef USE_HAL
             if (libhal_device_get_property_int (plugin->priv->ctx, udi, HAL_CURRENT_KEY, NULL) == 0)
                 is_charging = FALSE;
             else
                 is_charging = TRUE;
+#endif
             is_discharging = TRUE;
         }
 
@@ -708,6 +745,7 @@ battery_status_plugin_bme_process_timeout (gpointer data)
     BatteryStatusAreaItem *plugin = data;
     gboolean bme_running = system ("pgrep -f ^/usr/sbin/bme_RX-51 1>/dev/null 2>&1") == 0;
 
+#ifdef USE_HAL
     if (plugin->priv->bme_running != bme_running)
     {
         if (bme_running)
@@ -737,10 +775,12 @@ battery_status_plugin_bme_process_timeout (gpointer data)
         plugin->priv->bme_running = bme_running;
         battery_status_plugin_update_values (plugin);
     }
+#endif
 
     return TRUE;
 }
 
+#ifdef USE_GCONF
 static void
 battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnxn_id G_GNUC_UNUSED, GConfEntry *entry, gpointer data)
 {
@@ -764,7 +804,9 @@ battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnx
         plugin->priv->exec_application = value ? gconf_value_get_string (value) : NULL;
     }
 }
+#endif
 
+#ifdef USE_HAL
 static void
 battery_status_plugin_hal_device_modified_cb (LibHalContext *ctx, const char *udi)
 {
@@ -793,7 +835,9 @@ battery_status_plugin_hal_device_modified_cb (LibHalContext *ctx, const char *ud
 
     battery_status_plugin_update_values (plugin);
 }
+#endif
 
+#ifdef USE_HAL
 static void
 battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *udi, const char *key, dbus_bool_t is_removed G_GNUC_UNUSED, dbus_bool_t is_added G_GNUC_UNUSED)
 {
@@ -837,6 +881,7 @@ battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *
         }
     }
 }
+#endif
 
 static gboolean
 battery_status_plugin_on_button_clicked_cb (GtkWidget *widget G_GNUC_UNUSED, GdkEvent *event G_GNUC_UNUSED, gpointer user_data)
@@ -873,6 +918,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     dbus_error_free (&error);
 
+#if USE_HAL
     plugin->priv->ctx = libhal_ctx_new ();
     if (!plugin->priv->ctx)
     {
@@ -896,6 +942,8 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     }
 
     libhal_device_add_property_watch (plugin->priv->ctx, HAL_BME_UDI, NULL);
+#endif
+    plugin->priv->bme_replacement = TRUE;
 
     plugin->priv->context = NULL;
     if (ca_context_create (&plugin->priv->context) < 0)
@@ -913,6 +961,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         return;
     }
 
+#if USE_GCONF
     plugin->priv->gconf = gconf_client_get_default ();
     if (!plugin->priv->gconf)
     {
@@ -924,6 +973,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
     plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
     plugin->priv->gconf_notify = gconf_client_notify_add (plugin->priv->gconf, GCONF_EXEC_APPLICATION, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+#endif
 
     plugin->priv->title = gtk_label_new (NULL);
     if (!plugin->priv->title)
@@ -1022,9 +1072,16 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     plugin->priv->bme_running = FALSE;
     plugin->priv->display_is_off = FALSE;
 
+#if USE_GCONF
     plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
     plugin->priv->show_charge_charging = gconf_client_get_bool (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
     plugin->priv->exec_application = gconf_client_get_string (plugin->priv->gconf, GCONF_EXEC_APPLICATION, NULL);
+#else
+    plugin->priv->use_design = TRUE;
+    plugin->priv->show_charge_charging = TRUE;
+    plugin->priv->exec_application = "/bin/true";
+#endif
+
 
     if (!plugin->priv->bme_replacement)
         plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);
@@ -1037,11 +1094,13 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
         battery_status_plugin_dbus_timeout (plugin);
     }
 
+#if USE_HAL
     if (libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
         battery_status_plugin_update_charging (plugin, HAL_BME_UDI);
 
     if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
         battery_status_plugin_update_charging (plugin, HAL_BQ_UDI);
+#endif
 
     battery_status_plugin_update_icon (plugin, 0);
     battery_status_plugin_update_text (plugin);
@@ -1076,6 +1135,7 @@ battery_status_plugin_finalize (GObject *object)
         plugin->priv->context = NULL;
     }
 
+#ifdef USE_GCONF
     if (plugin->priv->gconf)
     {
         if (plugin->priv->gconf_notify)
@@ -1088,13 +1148,16 @@ battery_status_plugin_finalize (GObject *object)
         g_object_unref (plugin->priv->gconf);
         plugin->priv->gconf = NULL;
     }
+#endif
 
+#if USE_HAL
     if (plugin->priv->ctx)
     {
         libhal_ctx_shutdown (plugin->priv->ctx, NULL);
         libhal_ctx_free (plugin->priv->ctx);
         plugin->priv->ctx = NULL;
     }
+#endif
 
     if (plugin->priv->sysbus_conn)
     {
