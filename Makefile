@@ -11,7 +11,7 @@ install:
 clean:
 	$(RM) status-area-applet-battery.so
 
-status-area-applet-battery.so: status-area-applet-battery.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs hildon-1 libcanberra profile libhildondesktop-1 dbus-1 hal) -W -Wall -O2 -shared $^ -o $@
+status-area-applet-battery.so: status-area-applet-battery.c batmon.c batmon.h upower-defs.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $(shell pkg-config --cflags --libs hildon-1 libcanberra profile libhildondesktop-1 dbus-1 gconf-2.0) -W -Wall -O2 -shared $^ -o $@
 
 .PHONY: all install clean

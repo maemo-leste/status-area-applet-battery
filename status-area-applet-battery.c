@@ -2,6 +2,7 @@
  *  status-area-applet-battery: Open source rewrite of the Maemo 5 battery applet
  *  Copyright (C) 2011 Mohammad Abu-Garbeyyeh
  *  Copyright (C) 2011-2012 Pali Rohár
+ *  Copyright (C) 2017 Merlijn B. W. Wajer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -27,7 +28,7 @@
 #include <libintl.h>
 
 #include <dbus/dbus.h>
-#include <hal/libhal.h>
+
 #include <profiled/libprofile.h>
 #include <canberra.h>
 
@@ -37,26 +38,17 @@
 
 #include <gconf/gconf-client.h>
 
-#define HAL_BQ_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_bq27200_0"
-#define HAL_RX_UDI "/org/freedesktop/Hal/devices/computer_power_supply_battery_rx51_battery"
-#define HAL_BME_UDI "/org/freedesktop/Hal/devices/bme"
-#define HAL_PERCENTAGE_KEY "battery.charge_level.percentage"
-#define HAL_CAPACITY_KEY "battery.charge_level.capacity_state"
-#define HAL_CURRENT_KEY "battery.reporting.current"
-#define HAL_DESIGN_KEY "battery.reporting.design"
-#define HAL_LAST_FULL_KEY "battery.reporting.last_full"
-#define HAL_TIME_KEY "battery.remaining_time"
-#define HAL_BARS_KEY "battery.charge_level.current"
-#define HAL_IS_CHARGING_KEY "battery.rechargeable.is_charging"
-#define HAL_IS_DISCHARGING_KEY "battery.rechargeable.is_discharging"
-#define HAL_BME_VERSION_KEY "maemo.bme.version"
-#define HAL_CONNECTION_STATUS_KEY "maemo.charger.connection_status"
-#define HAL_POSITIVE_RATE_KEY "maemo.rechargeable.positive_rate"
+#include "batmon.h"
 
 #define GCONF_PATH "/apps/osso/status-area-applet-battery"
 #define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
 #define GCONF_SHOW_CHARGE_CHARGING_KEY GCONF_PATH "/show_charge_charging"
 #define GCONF_EXEC_APPLICATION GCONF_PATH "/exec_application"
+
+
+/** Whether to support legacy pattery low led pattern; nonzero for yes */
+#define SUPPORT_BATTERY_LOW_LED_PATTERN 0
+
 
 typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
@@ -79,14 +71,11 @@ struct _BatteryStatusAreaItemPrivate
     GtkWidget *value;
     GtkWidget *image;
     DBusConnection *sysbus_conn;
-    LibHalContext *ctx;
     ca_context *context;
     ca_proplist *pl;
     GConfClient *gconf;
     guint gconf_notify;
-    guint bme_timer;
     guint charger_timer;
-    guint dbus_timer;
     int percentage;
     int current;
     int design;
@@ -99,11 +88,8 @@ struct _BatteryStatusAreaItemPrivate
     gboolean charger_connected;
     gboolean verylow;
     gboolean display_is_off;
-    gboolean bme_running;
-    gboolean bme_replacement;
     gboolean use_design;
     gboolean show_charge_charging;
-    time_t bme_last_update;
     time_t low_last_reported;
     const char *exec_application;
 };
@@ -299,52 +285,6 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
     gtk_label_set_text (GTK_LABEL (plugin->priv->value), text);
 }
 
-static DBusHandlerResult
-battery_status_plugin_dbus_proxy (DBusConnection *connection G_GNUC_UNUSED, DBusMessage *message, void *data)
-{
-    BatteryStatusAreaItem *plugin = data;
-    dbus_uint32_t idle = 0;
-    dbus_uint32_t active = 0;
-
-    if (!dbus_message_is_signal (message, "com.nokia.bme.signal", "battery_timeleft"))
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-    if (g_strcmp0 (dbus_message_get_path (message), "/com/nokia/bme/signal"))
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-    if (!dbus_message_get_args (message, NULL, DBUS_TYPE_UINT32, &idle, DBUS_TYPE_UINT32, &active, DBUS_TYPE_INVALID))
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-    if (!plugin->priv->bme_running || plugin->priv->is_charging || !plugin->priv->is_discharging)
-        return DBUS_HANDLER_RESULT_HANDLED;
-
-    if (active > idle && idle)
-        active = idle;
-
-    plugin->priv->idle_time = idle*60;
-    plugin->priv->active_time = active*60;
-    battery_status_plugin_update_text (plugin);
-
-    return DBUS_HANDLER_RESULT_HANDLED;
-}
-
-static gboolean
-battery_status_plugin_dbus_timeout (gpointer data)
-{
-    BatteryStatusAreaItem *plugin = data;
-    DBusMessage *message;
-
-    message = dbus_message_new_method_call ("com.nokia.bme", "/com/nokia/bme/request", "com.nokia.bme.request", "timeleft_info_req");
-    if (!message)
-        return TRUE;
-
-    dbus_connection_send (plugin->priv->sysbus_conn, message, 0);
-    dbus_connection_flush (plugin->priv->sysbus_conn);
-    dbus_message_unref (message);
-
-    return TRUE;
-}
-
 static gboolean
 battery_status_plugin_charging_timeout (gpointer data)
 {
@@ -420,6 +360,9 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
 
     if (plugin->priv->charger_connected && ! (plugin->priv->is_charging && plugin->priv->is_discharging))
     {
+
+    /* TODO: Add this back in */
+#if 0
         if (plugin->priv->bme_running && libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
         {
             if (!libhal_device_get_property_bool (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
@@ -427,6 +370,8 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
         }
         else
             hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_not_charging"));
+#endif
+
     }
 
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
@@ -495,250 +440,24 @@ battery_status_plugin_battery_low (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
-{
-    int percentage = 0;
-    int current = -1;
-    int design = 0;
-    int last_full = 0;
-    int active_time = 0;
-    int bars = 0;
-    int val;
-    gboolean verylow = FALSE;
-
-    if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
-    {
-        percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_PERCENTAGE_KEY, NULL);
-        current = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_CURRENT_KEY, NULL);
-        design = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_DESIGN_KEY, NULL);
-        last_full = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_LAST_FULL_KEY, NULL);
-        active_time = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_TIME_KEY, NULL);
-        bars = libhal_device_get_property_int (plugin->priv->ctx, HAL_BME_UDI, HAL_BARS_KEY, NULL);
-
-        if (percentage == 0)
-            verylow = TRUE;
-    }
-
-    if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
-    {
-        val = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_CURRENT_KEY, NULL);
-        if (plugin->priv->bme_replacement)
-        {
-            if (val == 0)
-                current = -1;
-        }
-        else if (val != 0)
-        {
-            current = val;
-            percentage = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_PERCENTAGE_KEY, NULL);
-            active_time = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_TIME_KEY, NULL);
-            last_full = libhal_device_get_property_int (plugin->priv->ctx, HAL_BQ_UDI, HAL_LAST_FULL_KEY, NULL);
-
-            if (current > 0 && current <= 80)
-                verylow = TRUE;
-        }
-    }
-    else if (!plugin->priv->bme_running)
-    {
-        if (plugin->priv->is_charging)
-        {
-            plugin->priv->is_charging = FALSE;
-            battery_status_plugin_charging_stop (plugin);
-        }
-        plugin->priv->is_discharging = TRUE;
-    }
-
-    if (!plugin->priv->bme_replacement)
-    {
-        if (libhal_device_exists (plugin->priv->ctx, HAL_RX_UDI, NULL))
-        {
-            val = libhal_device_get_property_int (plugin->priv->ctx, HAL_RX_UDI, HAL_DESIGN_KEY, NULL);
-            if (val >= current)
-            {
-                design = val;
-                if (design > 0 && plugin->priv->design > 0 && abs (plugin->priv->design - design) < 100)
-                    design = plugin->priv->design;
-            }
-        }
-    }
-
-    if (!plugin->priv->bme_replacement)
-        last_full = 0;
-
-    if (last_full < 0)
-        last_full = 0;
-
-    if (design == 0)
-        design = last_full;
-
-    if (plugin->priv->use_design != 2 && current != -1 && last_full != 0)
-        design = last_full;
-
-    if (plugin->priv->use_design == 0 && current == -1)
-        design = 0;
-
-    if (current > 0 && design > 0)
-        percentage = 100 * current / design;
-
-    if (!plugin->priv->bme_running)
-        bars = 8 * (6.25 + percentage) / 100;
-
-    if (plugin->priv->verylow != verylow)
-        plugin->priv->verylow = verylow;
-
-    if (!plugin->priv->bme_running && current != -1 && !plugin->priv->is_charging)
-    {
-        if (current < 20)
-            battery_status_plugin_battery_empty (plugin);
-        else if (current < 200 && ((plugin->priv->percentage != percentage && percentage%2 == 0) || (verylow && plugin->priv->current != current && current%4 == 0)))
-            battery_status_plugin_battery_low (plugin);
-    }
-
-    if (bars < 0)
-        bars = 0;
-    else if (bars > 8)
-        bars = 8;
-
-    if (percentage < 0)
-        percentage = 0;
-    else if (percentage > 100)
-        percentage = 100;
-
-    if (current < 0)
-        current = 0;
-
-    if (design < 0)
-        design = 0;
-
-    if (active_time < 0)
-        active_time = 0;
-
-    if (plugin->priv->bars != bars)
-    {
-        plugin->priv->bars = bars;
-        if (plugin->priv->is_charging && plugin->priv->is_discharging)
-            battery_status_plugin_update_icon (plugin, 8);
-        else if (plugin->priv->is_discharging)
-            battery_status_plugin_update_icon (plugin, bars);
-    }
-
-    if (plugin->priv->idle_time < active_time && plugin->priv->idle_time)
-        plugin->priv->idle_time = active_time;
-
-    if (plugin->priv->active_time == 0 && active_time != 0)
-        battery_status_plugin_dbus_timeout (plugin);
-
-    plugin->priv->percentage = percentage;
-    plugin->priv->current = current;
-    plugin->priv->design = design;
-    plugin->priv->active_time = active_time;
-
-    battery_status_plugin_update_text (plugin);
-}
-
-static void
 battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
 {
-    gboolean charger_connected = FALSE;
-    char *str = NULL;
-
-    if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
+    if (plugin->priv->charger_connected)
+        battery_status_plugin_charger_connected (plugin);
+    else
     {
-        str = libhal_device_get_property_string (plugin->priv->ctx, HAL_BME_UDI, HAL_CONNECTION_STATUS_KEY, NULL);
-        if (str)
-        {
-            if (strcmp (str, "connected") == 0)
-                charger_connected = TRUE;
-            libhal_free_string (str);
-        }
-    }
-    else if (!plugin->priv->bme_replacement && libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
-    {
-        charger_connected = libhal_device_get_property_bool (plugin->priv->ctx, HAL_BQ_UDI, HAL_IS_CHARGING_KEY, NULL);
-    }
-
-    if (plugin->priv->charger_connected != charger_connected)
-    {
-        plugin->priv->charger_connected = charger_connected;
-        if (charger_connected)
-            battery_status_plugin_charger_connected (plugin);
-        else
-        {
-            battery_status_plugin_charger_disconnected (plugin);
-            battery_status_plugin_charging_stop (plugin);
-        }
+        battery_status_plugin_charger_disconnected(plugin);
+        battery_status_plugin_charging_stop (plugin);
     }
 }
 
 static void
-battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char *udi)
+battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin)
 {
-    gboolean is_charging;
-    gboolean is_discharging;
-
-    battery_status_plugin_update_charger (plugin);
-
-    is_charging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_CHARGING_KEY, NULL);
-    is_discharging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_DISCHARGING_KEY, NULL);
-
-    if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging)
-    {
-        if (!is_charging && !is_discharging)
-        {
-            if (libhal_device_get_property_int (plugin->priv->ctx, udi, HAL_CURRENT_KEY, NULL) == 0)
-                is_charging = FALSE;
-            else
-                is_charging = TRUE;
-            is_discharging = TRUE;
-        }
-
-        plugin->priv->is_charging = is_charging;
-        plugin->priv->is_discharging = is_discharging;
-
-        if (is_charging && !is_discharging)
-            battery_status_plugin_charging_start (plugin);
-        else if (is_discharging)
-            battery_status_plugin_charging_stop (plugin);
-    }
-}
-
-static gboolean
-battery_status_plugin_bme_process_timeout (gpointer data)
-{
-    BatteryStatusAreaItem *plugin = data;
-    gboolean bme_running = system ("pgrep -f ^/usr/sbin/bme_RX-51 1>/dev/null 2>&1") == 0;
-
-    if (plugin->priv->bme_running != bme_running)
-    {
-        if (bme_running)
-        {
-            battery_status_plugin_update_charging (plugin, HAL_BME_UDI);
-            if (!plugin->priv->dbus_timer)
-            {
-                dbus_bus_add_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/bme/signal',interface='com.nokia.bme.signal',member='battery_timeleft'", NULL);
-                dbus_connection_add_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_proxy, plugin, NULL);
-                plugin->priv->dbus_timer = g_timeout_add_seconds (60, battery_status_plugin_dbus_timeout, plugin);
-                battery_status_plugin_dbus_timeout (plugin);
-            }
-        }
-        else
-        {
-            if (plugin->priv->dbus_timer > 0)
-            {
-                dbus_bus_remove_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/bme/signal',interface='com.nokia.bme.signal',member='battery_timeleft'", NULL);
-                dbus_connection_remove_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_proxy, plugin);
-                g_source_remove (plugin->priv->dbus_timer);
-                plugin->priv->dbus_timer = 0;
-            }
-            plugin->priv->idle_time = 0;
-            plugin->priv->active_time = 0;
-        }
-
-        plugin->priv->bme_running = bme_running;
-        battery_status_plugin_update_values (plugin);
-    }
-
-    return TRUE;
+    if (plugin->priv->is_charging && !plugin->priv->is_discharging)
+        battery_status_plugin_charging_start (plugin);
+    else if (plugin->priv->is_discharging)
+        battery_status_plugin_charging_stop (plugin);
 }
 
 static void
@@ -752,12 +471,10 @@ battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnx
     {
         plugin->priv->use_design = value ? gconf_value_get_int (value) : 1;
         plugin->priv->design = 0;
-        battery_status_plugin_update_values (plugin);
     }
     else if (strcmp (key, GCONF_SHOW_CHARGE_CHARGING_KEY) == 0)
     {
         plugin->priv->show_charge_charging = value ? gconf_value_get_bool (value) : FALSE;
-        battery_status_plugin_update_values (plugin);
     }
     else if (strcmp (key, GCONF_EXEC_APPLICATION) == 0)
     {
@@ -765,76 +482,72 @@ battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnx
     }
 }
 
-static void
-battery_status_plugin_hal_device_modified_cb (LibHalContext *ctx, const char *udi)
-{
-    BatteryStatusAreaItem *plugin = libhal_ctx_get_user_data (ctx);
+static void on_property_changed(BatteryData *dat, void* user_data) {
+    BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem*)user_data;
 
-    if (plugin->priv->bme_replacement && strcmp (udi, HAL_BME_UDI) != 0)
-        return;
+    int bars;
 
-    if (strcmp (udi, HAL_BQ_UDI) != 0 && strcmp (udi, HAL_RX_UDI) != 0 && strcmp (udi, HAL_BME_UDI) != 0)
-        return;
+    /* Used to store previous values, e.g. the values *before* we update them */
+    gboolean is_charging = plugin->priv->is_charging;
+    gboolean is_discharging = plugin->priv->is_discharging;
+    gboolean charger_connected = plugin->priv->charger_connected;
 
-    if (strcmp (udi, HAL_RX_UDI) == 0)
-         plugin->priv->design = 0;
-    else
-    {
-        if (libhal_device_exists (plugin->priv->ctx, udi, NULL))
-           battery_status_plugin_update_charging (plugin, udi);
-        else
-        {
-            if (plugin->priv->bme_running && libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
-                battery_status_plugin_update_charging (plugin, HAL_BME_UDI);
-            else if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
-                battery_status_plugin_update_charging (plugin, HAL_BQ_UDI);
-        }
+    /* FIXME: This will make current and design vary over time since voltage
+     * is not constant(!) but rather the current voltage. */
+    plugin->priv->current = (int)(1000 * dat->energy_now / dat->voltage);
+    plugin->priv->design = (int)(1000 * dat->energy_full / dat->voltage);
+
+    plugin->priv->percentage = (int)dat->percentage;
+
+    bars = (int)(8 * (6.25 + dat->percentage) / 100);
+
+    /* XXX: Rely on dat->energy_rate to determine if we are charging or
+     * discharging ? (Pos or neg)
+     * UPower doesn't seem to accurately pass it through ... */
+    switch (dat->state) {
+        case UPOWER_STATE_UNKNOWN:
+        case UPOWER_STATE_DISCHARGING:
+        case UPOWER_STATE_EMPTY:
+        case UPOWER_STATE_PENDING_DISCHARGE:
+        case UPOWER_STATE_PENDING_CHARGE:
+            plugin->priv->is_discharging = TRUE;
+            plugin->priv->is_charging = FALSE;
+            plugin->priv->charger_connected = FALSE;
+            plugin->priv->active_time = dat->time_to_empty;
+
+            break;
+        case UPOWER_STATE_CHARGING:
+            plugin->priv->is_discharging = FALSE;
+            plugin->priv->is_charging = TRUE;
+            plugin->priv->charger_connected = TRUE;
+            plugin->priv->active_time = dat->time_to_full;
+            break;
     }
 
-    battery_status_plugin_update_values (plugin);
-}
+    if (plugin->priv->bars != bars) {
+        plugin->priv->bars = bars;
+        if (plugin->priv->is_charging && plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, 8);
+        else if (plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, bars);
+    }
 
-static void
-battery_status_plugin_hal_property_modified_cb (LibHalContext *ctx, const char *udi, const char *key, dbus_bool_t is_removed G_GNUC_UNUSED, dbus_bool_t is_added G_GNUC_UNUSED)
-{
-    BatteryStatusAreaItem *plugin = libhal_ctx_get_user_data (ctx);
-    const char *str;
+    if (plugin->priv->charger_connected != charger_connected) {
+        battery_status_plugin_update_charger(plugin);
+    }
 
-    if (strcmp (udi, HAL_BQ_UDI) != 0 && strcmp (udi, HAL_RX_UDI) != 0 && strcmp (udi, HAL_BME_UDI) != 0)
-        return;
+    if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging) {
+        battery_status_plugin_update_charging(plugin);
+    }
 
-    if (strcmp (key, HAL_PERCENTAGE_KEY) != 0 && strcmp (key, HAL_CAPACITY_KEY) != 0 && strcmp (key, HAL_CURRENT_KEY) != 0 &&
-        strcmp (key, HAL_DESIGN_KEY) != 0 && strcmp (key, HAL_TIME_KEY) != 0 && strcmp (key, HAL_BARS_KEY) != 0 &&
-        strcmp (key, HAL_IS_CHARGING_KEY) != 0 && strcmp (key, HAL_IS_DISCHARGING_KEY) != 0 && strcmp (key, HAL_CONNECTION_STATUS_KEY) != 0)
-        return;
+    battery_status_plugin_update_text(plugin);
+    battery_status_plugin_update_icon(plugin, bars);
 
-    if (strcmp (udi, HAL_BME_UDI) == 0 || plugin->priv->bme_last_update > time (NULL) || plugin->priv->bme_last_update + 15 < time (NULL))
-        if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
-            battery_status_plugin_update_charging (plugin, udi);
 
-    battery_status_plugin_update_values (plugin);
-
-    if (strcmp (udi, HAL_BME_UDI) == 0)
-    {
-        if (!plugin->priv->bme_running)
-            battery_status_plugin_bme_process_timeout (plugin);
-
-        if (strcmp (key, HAL_IS_CHARGING_KEY) == 0 || strcmp (key, HAL_IS_DISCHARGING_KEY) == 0)
-            plugin->priv->bme_last_update = time (NULL);
-
-        if (strcmp (key, HAL_CONNECTION_STATUS_KEY) == 0)
-            battery_status_plugin_update_charger (plugin);
-
-        if (strcmp (key, HAL_CAPACITY_KEY) == 0)
-        {
-            str = libhal_device_get_property_string (plugin->priv->ctx, udi, key, NULL);
-            if (strcmp (str, "empty") == 0)
-                battery_status_plugin_battery_empty (plugin);
-            else if (strcmp (str, "low") == 0)
-                battery_status_plugin_battery_low (plugin);
-            else if (strcmp (str, "full") == 0)
-                battery_status_plugin_update_icon (plugin, 8);
-        }
+    if (plugin->priv->percentage < 10) {
+        battery_status_plugin_battery_low(plugin);
+    } else if (plugin->priv->percentage < 5) {
+        battery_status_plugin_battery_empty(plugin);
     }
 }
 
@@ -873,29 +586,12 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     dbus_error_free (&error);
 
-    plugin->priv->ctx = libhal_ctx_new ();
-    if (!plugin->priv->ctx)
-    {
-        g_warning ("Could not open HAL context");
+    int bat_err = init_batt();
+    if (bat_err) {
+        g_warning("Could not initialise batmon");
         return;
     }
-
-    libhal_ctx_set_dbus_connection (plugin->priv->ctx, plugin->priv->sysbus_conn);
-    libhal_ctx_set_user_data (plugin->priv->ctx, plugin);
-    libhal_ctx_set_device_added (plugin->priv->ctx, battery_status_plugin_hal_device_modified_cb);
-    libhal_ctx_set_device_removed (plugin->priv->ctx, battery_status_plugin_hal_device_modified_cb);
-    libhal_ctx_set_device_property_modified (plugin->priv->ctx, battery_status_plugin_hal_property_modified_cb);
-    libhal_ctx_init (plugin->priv->ctx, NULL);
-
-    plugin->priv->bme_replacement = libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_BME_VERSION_KEY, NULL);
-
-    if (!plugin->priv->bme_replacement)
-    {
-        libhal_device_add_property_watch (plugin->priv->ctx, HAL_BQ_UDI, NULL);
-        libhal_device_add_property_watch (plugin->priv->ctx, HAL_RX_UDI, NULL);
-    }
-
-    libhal_device_add_property_watch (plugin->priv->ctx, HAL_BME_UDI, NULL);
+    set_batt_cb(on_property_changed, plugin);
 
     plugin->priv->context = NULL;
     if (ca_context_create (&plugin->priv->context) < 0)
@@ -1019,44 +715,26 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     g_signal_connect_after (G_OBJECT (event_box), "button-press-event", G_CALLBACK (battery_status_plugin_on_button_clicked_cb), plugin);
 
     plugin->priv->is_discharging = TRUE;
+    /*
     plugin->priv->bme_running = FALSE;
+    */
     plugin->priv->display_is_off = FALSE;
 
     plugin->priv->use_design = gconf_client_get_int (plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
     plugin->priv->show_charge_charging = gconf_client_get_bool (plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
     plugin->priv->exec_application = gconf_client_get_string (plugin->priv->gconf, GCONF_EXEC_APPLICATION, NULL);
 
-    if (!plugin->priv->bme_replacement)
-        plugin->priv->bme_timer = g_timeout_add_seconds (30, battery_status_plugin_bme_process_timeout, plugin);
-    else
-    {
-        plugin->priv->bme_running = TRUE;
-        dbus_bus_add_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/bme/signal',interface='com.nokia.bme.signal',member='battery_timeleft'", NULL);
-        dbus_connection_add_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_proxy, plugin, NULL);
-        plugin->priv->dbus_timer = g_timeout_add_seconds (60, battery_status_plugin_dbus_timeout, plugin);
-        battery_status_plugin_dbus_timeout (plugin);
-    }
 
-    if (libhal_device_exists (plugin->priv->ctx, HAL_BME_UDI, NULL))
-        battery_status_plugin_update_charging (plugin, HAL_BME_UDI);
-
-    if (libhal_device_exists (plugin->priv->ctx, HAL_BQ_UDI, NULL))
-        battery_status_plugin_update_charging (plugin, HAL_BQ_UDI);
+    on_property_changed(get_batt_data(), plugin);
 
     battery_status_plugin_update_icon (plugin, 0);
     battery_status_plugin_update_text (plugin);
-
-    if (!plugin->priv->bme_replacement)
-       battery_status_plugin_bme_process_timeout (plugin);
-
-    battery_status_plugin_update_values (plugin);
 
     dbus_bus_add_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
     dbus_connection_add_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
 
     gtk_container_add (GTK_CONTAINER (plugin), event_box);
     gtk_widget_show_all (GTK_WIDGET (plugin));
-
 }
 
 static void
@@ -1089,12 +767,7 @@ battery_status_plugin_finalize (GObject *object)
         plugin->priv->gconf = NULL;
     }
 
-    if (plugin->priv->ctx)
-    {
-        libhal_ctx_shutdown (plugin->priv->ctx, NULL);
-        libhal_ctx_free (plugin->priv->ctx);
-        plugin->priv->ctx = NULL;
-    }
+    free_bat();
 
     if (plugin->priv->sysbus_conn)
     {
@@ -1102,24 +775,10 @@ battery_status_plugin_finalize (GObject *object)
         plugin->priv->sysbus_conn = NULL;
     }
 
-    if (plugin->priv->bme_timer > 0)
-    {
-        g_source_remove (plugin->priv->bme_timer);
-        plugin->priv->bme_timer = 0;
-    }
-
     if (plugin->priv->charger_timer > 0)
     {
         g_source_remove (plugin->priv->charger_timer);
         plugin->priv->charger_timer = 0;
-    }
-
-    if (plugin->priv->dbus_timer > 0)
-    {
-        dbus_bus_remove_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/bme/signal',interface='com.nokia.bme.signal',member='battery_timeleft'", NULL);
-        dbus_connection_remove_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_proxy, plugin);
-        g_source_remove (plugin->priv->dbus_timer);
-        plugin->priv->dbus_timer = 0;
     }
 
     dbus_bus_remove_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
