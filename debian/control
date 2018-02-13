@@ -7,6 +7,6 @@ Standards-Version: 3.7.3
 
 Package: status-area-applet-battery
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, osso-dsm-ui-l10n-mr | osso-dsm-ui-l10n-mr0, osso-clock-l10n-mr | osso-clock-l10n-mr0, mediaplyer-l10n-mr | mediaplayer-l10n-mr0, osso-sounds-ui, profiled (>= 0.0.3)
+Depends: ${shlibs:Depends}, ${misc:Depends}, osso-dsm-ui-l10n-mr | osso-dsm-ui-l10n-mr0, osso-clock-l10n-mr | osso-clock-l10n-mr0, mediaplayer-l10n-mr | mediaplayer-l10n-mr0, osso-sounds-ui, profiled (>= 0.0.3)
 Description: status area battery applet
  Battery applet for the status area. This will show the battery information.
