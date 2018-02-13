@@ -298,7 +298,7 @@ void set_batt_cb(BatteryCallback *cb, void* user_data) {
     private.user_data = user_data;
 }
 
-BatteryData *get_data(void) {
+BatteryData *get_batt_data(void) {
     return &(private.data);
 }
 

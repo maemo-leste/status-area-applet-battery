@@ -295,7 +295,6 @@ battery_status_plugin_charging_timeout (gpointer data)
 {
     BatteryStatusAreaItem *plugin = data;
     int bars = plugin->priv->bars;
-#if 0
 
     if (!plugin->priv->charger_timer)
         return FALSE;
@@ -309,7 +308,6 @@ battery_status_plugin_charging_timeout (gpointer data)
         plugin->priv->charging_id = 7 + plugin->priv->charging_id % 2; /* id is 7..8 */
     else
         plugin->priv->charging_id = bars + ( plugin->priv->charging_id - bars + 1 ) % ( 9 - bars ); /* id is bars..8 */
-#endif
 
     battery_status_plugin_update_icon (plugin, plugin->priv->charging_id);
     return TRUE;
@@ -484,14 +482,6 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     if (active_time < 0)
         active_time = 0;
 
-    if (plugin->priv->bars != bars)
-    {
-        plugin->priv->bars = bars;
-        if (plugin->priv->is_charging && plugin->priv->is_discharging)
-            battery_status_plugin_update_icon (plugin, 8);
-        else if (plugin->priv->is_discharging)
-            battery_status_plugin_update_icon (plugin, bars);
-    }
 
     if (plugin->priv->idle_time < active_time && plugin->priv->idle_time)
         plugin->priv->idle_time = active_time;
@@ -507,26 +497,18 @@ battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
     plugin->priv->active_time = active_time;
     plugin->priv->bars = bars;
 
-    battery_status_plugin_update_text (plugin);
-    battery_status_plugin_update_icon (plugin, bars);
 }
 
 static void
-battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
+battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin, gboolean charger_connected)
 {
-    gboolean charger_connected = FALSE;
-    char *str = NULL;
-
-    /* TODO MW: Get charger_connected state here */
-
     if (plugin->priv->charger_connected != charger_connected)
     {
-        plugin->priv->charger_connected = charger_connected;
-        if (charger_connected)
+        if (plugin->priv->charger_connected)
             battery_status_plugin_charger_connected (plugin);
         else
         {
-            battery_status_plugin_charger_disconnected (plugin);
+            battery_status_plugin_charger_disconnected(plugin);
             battery_status_plugin_charging_stop (plugin);
         }
     }
@@ -535,40 +517,12 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char *udi)
 {
-    gboolean is_charging;
-    gboolean is_discharging;
+    /*battery_status_plugin_update_charger (plugin);*/
 
-    battery_status_plugin_update_charger (plugin);
-
-#if 0
-    is_charging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_CHARGING_KEY, NULL);
-    is_discharging = libhal_device_get_property_bool (plugin->priv->ctx, udi, HAL_IS_DISCHARGING_KEY, NULL);
-#else
-    is_charging = TRUE;
-    is_discharging = FALSE;
-#endif
-
-    if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging)
-    {
-        if (!is_charging && !is_discharging)
-        {
-#if 0
-            if (libhal_device_get_property_int (plugin->priv->ctx, udi, HAL_CURRENT_KEY, NULL) == 0)
-                is_charging = FALSE;
-            else
-                is_charging = TRUE;
-#endif
-            is_discharging = TRUE;
-        }
-
-        plugin->priv->is_charging = is_charging;
-        plugin->priv->is_discharging = is_discharging;
-
-        if (is_charging && !is_discharging)
-            battery_status_plugin_charging_start (plugin);
-        else if (is_discharging)
-            battery_status_plugin_charging_stop (plugin);
-    }
+    if (plugin->priv->is_charging && !plugin->priv->is_discharging)
+        battery_status_plugin_charging_start (plugin);
+    else if (plugin->priv->is_discharging)
+        battery_status_plugin_charging_stop (plugin);
 }
 
 #ifdef USE_GCONF
@@ -600,23 +554,60 @@ battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnx
 static void on_property_changed(BatteryData *dat, void* user_data) {
     BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem*)user_data;
 
+    int bars;
+    gboolean is_charging = plugin->priv->is_charging;
+    gboolean is_discharging = plugin->priv->is_discharging;
+    gboolean charger_connected = plugin->priv->charger_connected;
+
     plugin->priv->percentage = (int)dat->percentage;
-    plugin->priv->bars = (int)((dat->percentage / 100) * 8);
+    bars = (int)((dat->percentage / 100) * 8);
+
+    switch (dat->state) {
+        case UPOWER_STATE_UNKNOWN:
+        case UPOWER_STATE_DISCHARGING:
+        case UPOWER_STATE_EMPTY:
+        case UPOWER_STATE_PENDING_DISCHARGE:
+            plugin->priv->is_discharging = TRUE;
+            plugin->priv->is_charging = FALSE;
+            plugin->priv->charger_connected = FALSE;
+            break;
+        case UPOWER_STATE_CHARGING:
+            plugin->priv->is_discharging = FALSE;
+            plugin->priv->is_charging = TRUE;
+            plugin->priv->charger_connected = TRUE;
+            break;
+        case UPOWER_STATE_PENDING_CHARGE:
+            plugin->priv->is_discharging = FALSE;
+            plugin->priv->is_charging = FALSE;
+            plugin->priv->charger_connected = TRUE;
+    }
 
 
-    battery_status_plugin_update_values(plugin);
+    if (plugin->priv->bars != bars) {
+        plugin->priv->bars = bars;
+        if (plugin->priv->is_charging && plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, 8);
+        else if (plugin->priv->is_discharging)
+            battery_status_plugin_update_icon (plugin, bars);
+    }
 
-    /* battery_status_plugin_update_charging */
-    /* battery_status_plugin_update_values */
-    /* battery_status_plugin_update_charger */
+    battery_status_plugin_update_charger(plugin, charger_connected);
+
+    if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging) {
+        battery_status_plugin_update_charging(plugin, NULL);
+    }
+
+    battery_status_plugin_update_text(plugin);
+    battery_status_plugin_update_icon(plugin, bars);
+
     /*
-                str = libhal_device_get_property_string (plugin->priv->ctx, udi, key, NULL);
-            if (strcmp (str, "empty") == 0)
-                battery_status_plugin_battery_empty (plugin);
-            else if (strcmp (str, "low") == 0)
-                battery_status_plugin_battery_low (plugin);
-            else if (strcmp (str, "full") == 0)
-                battery_status_plugin_update_icon (plugin, 8);
+        str = libhal_device_get_property_string (plugin->priv->ctx, udi, key, NULL);
+    if (strcmp (str, "empty") == 0)
+        battery_status_plugin_battery_empty (plugin);
+    else if (strcmp (str, "low") == 0)
+        battery_status_plugin_battery_low (plugin);
+    else if (strcmp (str, "full") == 0)
+        battery_status_plugin_update_icon (plugin, 8);
     */
 }
 
@@ -800,9 +791,12 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 #else
     /* TODO */
     plugin->priv->use_design = TRUE;
-    plugin->priv->show_charge_charging = TRUE;
+    plugin->priv->show_charge_charging = FALSE;
     plugin->priv->exec_application = "/bin/true";
 #endif
+
+
+    on_property_changed(get_batt_data(), plugin);
 
     battery_status_plugin_update_icon (plugin, 0);
     battery_status_plugin_update_text (plugin);
