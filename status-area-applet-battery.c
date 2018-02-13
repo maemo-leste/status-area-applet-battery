@@ -567,6 +567,7 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
         case UPOWER_STATE_DISCHARGING:
         case UPOWER_STATE_EMPTY:
         case UPOWER_STATE_PENDING_DISCHARGE:
+        case UPOWER_STATE_PENDING_CHARGE:
             plugin->priv->is_discharging = TRUE;
             plugin->priv->is_charging = FALSE;
             plugin->priv->charger_connected = FALSE;
@@ -576,10 +577,6 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
             plugin->priv->is_charging = TRUE;
             plugin->priv->charger_connected = TRUE;
             break;
-        case UPOWER_STATE_PENDING_CHARGE:
-            plugin->priv->is_discharging = FALSE;
-            plugin->priv->is_charging = FALSE;
-            plugin->priv->charger_connected = TRUE;
     }
 
 
