@@ -454,7 +454,7 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char *udi)
+battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin)
 {
     if (plugin->priv->is_charging && !plugin->priv->is_discharging)
         battery_status_plugin_charging_start (plugin);
@@ -498,8 +498,8 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
 
     /* FIXME: This will make current and design vary over time since voltage
      * is not constant(!) but rather the current voltage. */
-    plugin->priv->current = (int)(1000 * dat->energy_now / dat->voltage)
-    plugin->priv->design = (int)(1000 * dat->energy_full / dat->voltage)
+    plugin->priv->current = (int)(1000 * dat->energy_now / dat->voltage);
+    plugin->priv->design = (int)(1000 * dat->energy_full / dat->voltage);
 
     plugin->priv->percentage = (int)dat->percentage;
 
@@ -533,26 +533,23 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
             battery_status_plugin_update_icon (plugin, bars);
     }
 
-    if (plugin->priv->charger_connected != charger_connected)
+    if (plugin->priv->charger_connected != charger_connected) {
         battery_status_plugin_update_charger(plugin);
     }
 
     if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging) {
-        battery_status_plugin_update_charging(plugin, NULL);
+        battery_status_plugin_update_charging(plugin);
     }
 
     battery_status_plugin_update_text(plugin);
     battery_status_plugin_update_icon(plugin, bars);
 
-    /*
-        str = libhal_device_get_property_string (plugin->priv->ctx, udi, key, NULL);
-    if (strcmp (str, "empty") == 0)
-        battery_status_plugin_battery_empty (plugin);
-    else if (strcmp (str, "low") == 0)
-        battery_status_plugin_battery_low (plugin);
-    else if (strcmp (str, "full") == 0)
-        battery_status_plugin_update_icon (plugin, 8);
-    */
+
+    if (plugin->priv->percentage < 10) {
+        battery_status_plugin_battery_low(plugin);
+    } else if (plugin->priv->percentage < 5) {
+        battery_status_plugin_battery_empty(plugin);
+    }
 }
 
 static gboolean

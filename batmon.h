@@ -20,8 +20,6 @@ typedef struct {
     gdouble energy_empty;
     gdouble energy_full;
 
-    gdouble voltage;
-
     guint64 update_time;
 
     gboolean calibrated; /* TODO set this */
