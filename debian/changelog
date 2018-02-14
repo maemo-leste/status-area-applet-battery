@@ -1,3 +1,10 @@
+status-area-applet-battery (1.1-1) unstable; urgency=medium
+
+  * Port to upower
+  * Prepare Maemo Leste package
+
+ -- Ivan J. <parazyd@dyne.org>  Wed, 14 Feb 2018 14:00:00 +0100
+
 status-area-applet-battery (1.0-11) fremantle; urgency=low
 
   * Fix crashing after unset gconf value

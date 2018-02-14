@@ -1,12 +1,27 @@
 Source: status-area-applet-battery
 Section: x11
 Priority: extra
-Maintainer: Pali Rohár <pali.rohar@gmail.com>
-Build-Depends: debhelper (>= 5), pkg-config, libhildon1-dev, libhildondesktop1-dev, libcanberra-dev, libhal-dev, libprofile-dev
+Maintainer: Ivan J. <parazyd@dyne.org>
+Uploaders: Pali Rohár <pali.rohar@gmail.com>, Merlijn Wajer <merlijn@wizzup.org>
+Build-Depends: debhelper (>= 5),
+ pkg-config,
+ libhildon1-dev,
+ libhildondesktop1-dev,
+ libcanberra-dev,
+ libprofile-dev,
+ libgconf2-dev,
+ libdbus-1-dev,
+ libdbus-glib-1-dev,
+ libglib2.0-dev,
 Standards-Version: 3.7.3
 
 Package: status-area-applet-battery
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, osso-dsm-ui-l10n-mr | osso-dsm-ui-l10n-mr0, osso-clock-l10n-mr | osso-clock-l10n-mr0, mediaplayer-l10n-mr | mediaplayer-l10n-mr0, osso-sounds-ui, profiled (>= 0.0.3)
+Depends: ${shlibs:Depends}, ${misc:Depends},
+ osso-dsm-ui-l10n-mr0,
+ osso-clock-l10n-mr0,
+ osso-sounds-ui,
+ profiled (>= 0.0.3),
+ upower,
 Description: status area battery applet
  Battery applet for the status area. This will show the battery information.
