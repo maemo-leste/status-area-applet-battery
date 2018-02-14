@@ -1,3 +1,24 @@
+/***********************************************************************************
+*  status-area-applet-battery: Open source rewrite of the Maemo 5 battery applet
+*  for Maemo Leste
+*  Copyright (C) 2017 Merlijn B. W. Wajer
+*
+*  This program is free software; you can redistribute it and/or modify
+*  it under the terms of the GNU General Public License as published by
+*  the Free Software Foundation; either version 2 of the License, or
+*  (at your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*  GNU General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software
+*  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*
+***********************************************************************************/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -193,6 +214,7 @@ int update_property(const gchar* name, GVariant* value) {
     _UPDATE_BATT_DATA("Energy", &private.data.energy_now, "d");
     _UPDATE_BATT_DATA("EnergyEmpty", &private.data.energy_empty, "d");
     _UPDATE_BATT_DATA("EnergyFull", &private.data.energy_full, "d");
+    _UPDATE_BATT_DATA("EnergyRate", &private.data.energy_rate, "d");
 
     _UPDATE_BATT_DATA("Voltage", &private.data.voltage, "d");
 
@@ -203,7 +225,7 @@ int update_property(const gchar* name, GVariant* value) {
 }
 
 
-/* XXX: Parts taken from gdbus examples, note that, or rewrite significantly */
+/* Inspiration taken from gio/tests/gdbus-example-watch-proxy.c */
 static void on_properties_changed(GDBusProxy *proxy,
         GVariant *changed_properties,
         const gchar* const *invalidated_properties,
@@ -229,7 +251,7 @@ static void on_properties_changed(GDBusProxy *proxy,
         private.cb(&private.data, private.user_data);
 }
 
-/* XXX: Parts taken from gdbus examples, note that, or rewrite significantly */
+/* Inspiration taken from gio/tests/gdbus-example-watch-proxy.c */
 static void get_initial_properties_from_proxy(GDBusProxy *proxy) {
     gchar **property_names;
     guint n;

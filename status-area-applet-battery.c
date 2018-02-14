@@ -2,6 +2,7 @@
  *  status-area-applet-battery: Open source rewrite of the Maemo 5 battery applet
  *  Copyright (C) 2011 Mohammad Abu-Garbeyyeh
  *  Copyright (C) 2011-2012 Pali Rohár
+ *  Copyright (C) 2017 Merlijn B. W. Wajer
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -364,6 +365,7 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
     if (plugin->priv->charger_connected && ! (plugin->priv->is_charging && plugin->priv->is_discharging))
     {
 
+    /* TODO: Add this back in */
 #if 0
         if (plugin->priv->bme_running && libhal_device_property_exists (plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
         {
@@ -505,6 +507,9 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
 
     bars = (int)(8 * (6.25 + dat->percentage) / 100);
 
+    /* XXX: Rely on dat->energy_rate to determine if we are charging or
+     * discharging ? (Pos or neg)
+     * UPower doesn't seem to accurately pass it through ... */
     switch (dat->state) {
         case UPOWER_STATE_UNKNOWN:
         case UPOWER_STATE_DISCHARGING:
