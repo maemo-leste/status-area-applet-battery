@@ -2,17 +2,14 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "upower-defs.h"
 #include "batmon.h"
-
 
 /*
  * TODO:
- * - Make initial code async perhaps ?
- * - Integrate with status-area-applet-battery (and remove most of the
- *   deprecated code from there) - start with something like battery_status_plugin_hal_property_modified_cb
- * - Support DeviceAdded and DeviceRemoved (just rescan all & pick again if this happens? )
- * - When we can't find device, just wait for added/removed signals
+ * - Make init code async perhaps ?
+ * - Do not hard fail if we cannot (currently) find a battery; so we can find
+ *   one later (and also immediately support searching for batteries later on
+ *   DeviceAdded and DeviceRemoved)
  * - Original appletalso reads rx51_battery -- I think only for some design values.
  */
 
@@ -193,6 +190,14 @@ int update_property(const gchar* name, GVariant* value) {
     _UPDATE_BATT_DATA("TimeToEmpty", &private.data.time_to_empty, "x");
     _UPDATE_BATT_DATA("TimeToFull", &private.data.time_to_full, "x");
 
+    _UPDATE_BATT_DATA("Energy", &private.data.energy_now, "d");
+    _UPDATE_BATT_DATA("EnergyEmpty", &private.data.energy_empty, "d");
+    _UPDATE_BATT_DATA("EnergyFull", &private.data.energy_full, "d");
+
+    _UPDATE_BATT_DATA("Voltage", &private.data.voltage, "d");
+
+    _UPDATE_BATT_DATA("UpdateTime", &private.data.update_time, "t");
+
     /* No match */
     return 1;
 }
@@ -281,7 +286,8 @@ int init_batt(void) {
         return 1;
     }
 
-    fprintf(stderr, "OK. Found device: %s\n", private.dev->upower_path);
+    /* Zero battery data structure */
+    memset(&(private.data), 0, sizeof(BatteryData));
 
     if (monitor_battery()) {
         fprintf(stderr, "Failed to monitor events\n");

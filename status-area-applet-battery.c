@@ -39,9 +39,7 @@
 #include <gconf/gconf-client.h>
 #endif
 
-#include <unistd.h>
 #include "batmon.h"
-#include "upower-defs.h"
 
 #define GCONF_PATH "/apps/osso/status-area-applet-battery"
 #define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
@@ -444,81 +442,20 @@ battery_status_plugin_battery_low (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_update_values (BatteryStatusAreaItem *plugin)
+battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
 {
-    int percentage = 0;
-    int current = -1;
-    int design = 0;
-    int last_full = 0;
-    int active_time = 0;
-    int bars = 0;
-    int val;
-    gboolean verylow = FALSE;
-
-    /* TODO */
-    bars = plugin->priv->bars;
-    percentage = plugin->priv->percentage;
-    current = 70;
-    design = 100;
-    active_time = 600000;
-
-
-    if (bars < 0)
-        bars = 0;
-    else if (bars > 8)
-        bars = 8;
-
-    if (percentage < 0)
-        percentage = 0;
-    else if (percentage > 100)
-        percentage = 100;
-
-    if (current < 0)
-        current = 0;
-
-    if (design < 0)
-        design = 0;
-
-    if (active_time < 0)
-        active_time = 0;
-
-
-    if (plugin->priv->idle_time < active_time && plugin->priv->idle_time)
-        plugin->priv->idle_time = active_time;
-
-    /*
-    if (plugin->priv->active_time == 0 && active_time != 0)
-        battery_status_plugin_dbus_timeout (plugin);
-    */
-
-    plugin->priv->percentage = percentage;
-    plugin->priv->current = current;
-    plugin->priv->design = design;
-    plugin->priv->active_time = active_time;
-    plugin->priv->bars = bars;
-
-}
-
-static void
-battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin, gboolean charger_connected)
-{
-    if (plugin->priv->charger_connected != charger_connected)
+    if (plugin->priv->charger_connected)
+        battery_status_plugin_charger_connected (plugin);
+    else
     {
-        if (plugin->priv->charger_connected)
-            battery_status_plugin_charger_connected (plugin);
-        else
-        {
-            battery_status_plugin_charger_disconnected(plugin);
-            battery_status_plugin_charging_stop (plugin);
-        }
+        battery_status_plugin_charger_disconnected(plugin);
+        battery_status_plugin_charging_stop (plugin);
     }
 }
 
 static void
 battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin, const char *udi)
 {
-    /*battery_status_plugin_update_charger (plugin);*/
-
     if (plugin->priv->is_charging && !plugin->priv->is_discharging)
         battery_status_plugin_charging_start (plugin);
     else if (plugin->priv->is_discharging)
@@ -537,12 +474,10 @@ battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnx
     {
         plugin->priv->use_design = value ? gconf_value_get_int (value) : 1;
         plugin->priv->design = 0;
-        battery_status_plugin_update_values (plugin);
     }
     else if (strcmp (key, GCONF_SHOW_CHARGE_CHARGING_KEY) == 0)
     {
         plugin->priv->show_charge_charging = value ? gconf_value_get_bool (value) : FALSE;
-        battery_status_plugin_update_values (plugin);
     }
     else if (strcmp (key, GCONF_EXEC_APPLICATION) == 0)
     {
@@ -555,12 +490,20 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
     BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem*)user_data;
 
     int bars;
+
+    /* Used to store previous values, e.g. the values *before* we update them */
     gboolean is_charging = plugin->priv->is_charging;
     gboolean is_discharging = plugin->priv->is_discharging;
     gboolean charger_connected = plugin->priv->charger_connected;
 
+    /* FIXME: This will make current and design vary over time since voltage
+     * is not constant(!) but rather the current voltage. */
+    plugin->priv->current = (int)(1000 * dat->energy_now / dat->voltage)
+    plugin->priv->design = (int)(1000 * dat->energy_full / dat->voltage)
+
     plugin->priv->percentage = (int)dat->percentage;
-    bars = (int)((dat->percentage / 100) * 8);
+
+    bars = (int)(8 * (6.25 + dat->percentage) / 100);
 
     switch (dat->state) {
         case UPOWER_STATE_UNKNOWN:
@@ -571,14 +514,16 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
             plugin->priv->is_discharging = TRUE;
             plugin->priv->is_charging = FALSE;
             plugin->priv->charger_connected = FALSE;
+            plugin->priv->active_time = dat->time_to_empty;
+
             break;
         case UPOWER_STATE_CHARGING:
             plugin->priv->is_discharging = FALSE;
             plugin->priv->is_charging = TRUE;
             plugin->priv->charger_connected = TRUE;
+            plugin->priv->active_time = dat->time_to_full;
             break;
     }
-
 
     if (plugin->priv->bars != bars) {
         plugin->priv->bars = bars;
@@ -588,7 +533,9 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
             battery_status_plugin_update_icon (plugin, bars);
     }
 
-    battery_status_plugin_update_charger(plugin, charger_connected);
+    if (plugin->priv->charger_connected != charger_connected)
+        battery_status_plugin_update_charger(plugin);
+    }
 
     if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging) {
         battery_status_plugin_update_charging(plugin, NULL);
@@ -628,8 +575,6 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
     GtkWidget *label_box;
     GtkWidget *event_box;
     GtkStyle *style;
-
-    //sleep(20);
 
     plugin->priv = G_TYPE_INSTANCE_GET_PRIVATE (plugin, battery_status_plugin_get_type (), BatteryStatusAreaItemPrivate);
 
@@ -797,8 +742,6 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     battery_status_plugin_update_icon (plugin, 0);
     battery_status_plugin_update_text (plugin);
-
-    battery_status_plugin_update_values (plugin);
 
     dbus_bus_add_match (plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
     dbus_connection_add_filter (plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin, NULL);

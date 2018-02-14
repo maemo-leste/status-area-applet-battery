@@ -2,10 +2,10 @@
 #define _BATMON_H_
 #include <gio/gio.h>
 
+#include "upower-defs.h"
+
 /* upower data */
 typedef struct {
-    gboolean calibrated; /* TODO set this */
-
     gdouble percentage;
     gdouble voltage;
     gdouble temperature;
@@ -15,6 +15,16 @@ typedef struct {
 
     gint64 time_to_full;
     gint64 time_to_empty;
+
+    gdouble energy_now;
+    gdouble energy_empty;
+    gdouble energy_full;
+
+    gdouble voltage;
+
+    guint64 update_time;
+
+    gboolean calibrated; /* TODO set this */
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData*, void*);
