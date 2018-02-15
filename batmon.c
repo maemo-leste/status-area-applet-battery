@@ -38,7 +38,6 @@
 typedef struct {
     guint32 type;
     guint32 technology;
-    gchar* vendor;
     gchar* upower_path;
 } UPowerDevice;
 
@@ -62,8 +61,6 @@ UPowerDevice* alloc_upower_device(void) {
 void free_upower_device(UPowerDevice* dev) {
     if (dev->upower_path)
         g_free(dev->upower_path);
-    if (dev->vendor)
-        g_free(dev->vendor);
     free(dev);
 }
 
@@ -113,7 +110,6 @@ UPowerDevice* get_device(GVariant *device_properties) {
 
     g_variant_dict_lookup(dict, "Type", "u", &(dev->type));
     g_variant_dict_lookup(dict, "Technology", "u", &(dev->technology));
-    g_variant_dict_lookup(dict, "Vendor", "s", &(dev->vendor));
 
     g_variant_dict_unref(dict);
 
@@ -123,10 +119,7 @@ UPowerDevice* get_device(GVariant *device_properties) {
 gboolean want_device(UPowerDevice *dev) {
     return (dev->type == UPOWER_TYPE_BATTERY) &&
            /* Check for sensible technology value to rule out non-batteries */
-           (dev->technology != UPOWER_TECHNOLOGY_UNKNOWN) &&
-           /* Check for non-empty vendor in the hope to rule out virtual
-            * batteries */
-           (strcmp(dev->vendor, "") != 0);
+           (dev->technology != UPOWER_TECHNOLOGY_UNKNOWN);
 }
 
 UPowerDevice* find_battery_device(GDBusConnection* bus) {
