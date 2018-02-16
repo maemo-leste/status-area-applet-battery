@@ -66,7 +66,8 @@ void free_upower_device(UPowerDevice* dev) {
 
 static PrivData private = { .dev = NULL,
                             .proxy = NULL,
-                            .cb = NULL };
+                            .cb = NULL,
+                            .user_data = NULL };
 
 
 GVariant* get_device_properties(GDBusConnection* bus, gchar* device) {
