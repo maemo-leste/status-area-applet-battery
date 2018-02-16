@@ -493,7 +493,8 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
     gboolean charger_connected = plugin->priv->charger_connected;
 
     /* FIXME: This will make current and design vary over time since voltage
-     * is not constant(!) but rather the current voltage. */
+     * is not constant(!) but rather the current voltage.
+     * The values are provided in /sys, but UPower does not pass them to us. */
     plugin->priv->current = (int)(1000 * dat->energy_now / dat->voltage);
     plugin->priv->design = (int)(1000 * dat->energy_full / dat->voltage);
 
@@ -501,21 +502,23 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
 
     bars = (int)(8 * (6.25 + dat->percentage) / 100);
 
-    /* XXX: Rely on dat->energy_rate to determine if we are charging or
-     * discharging ? (Pos or neg)
-     * UPower doesn't seem to accurately pass it through ... */
     switch (dat->state) {
         case UPOWER_STATE_UNKNOWN:
         case UPOWER_STATE_DISCHARGING:
         case UPOWER_STATE_EMPTY:
-        case UPOWER_STATE_PENDING_DISCHARGE:
-        case UPOWER_STATE_PENDING_CHARGE:
+        case UPOWER_STATE_PENDING_CHARGE: /* Unsure about this one */
             plugin->priv->is_discharging = TRUE;
             plugin->priv->is_charging = FALSE;
             plugin->priv->charger_connected = FALSE;
             plugin->priv->active_time = dat->time_to_empty;
-
             break;
+
+        case UPOWER_STATE_PENDING_DISCHARGE:
+            plugin->priv->is_discharging = FALSE;
+            plugin->priv->is_charging = FALSE;
+            plugin->priv->charger_connected = TRUE;
+			break;
+
         case UPOWER_STATE_CHARGING:
             plugin->priv->is_discharging = FALSE;
             plugin->priv->is_charging = TRUE;
@@ -586,6 +589,9 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 
     dbus_error_free (&error);
 
+	/* FIXME: Change init_batt so that it will not fail when it fails to find a
+	 * battery, and instead attempt to find one later, when
+	 * DeviceAdded/DeviceRemoved occurs */
     int bat_err = init_batt();
     if (bat_err) {
         g_warning("Could not initialise batmon");

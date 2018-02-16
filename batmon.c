@@ -31,7 +31,7 @@
  * - Do not hard fail if we cannot (currently) find a battery; so we can find
  *   one later (and also immediately support searching for batteries later on
  *   DeviceAdded and DeviceRemoved)
- * - Original appletalso reads rx51_battery -- I think only for some design values.
+ * - Original applet also reads rx51_battery -- I think only for some design values.
  */
 
 /* Only contains values we care about */
