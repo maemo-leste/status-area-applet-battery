@@ -517,7 +517,7 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
             plugin->priv->is_discharging = FALSE;
             plugin->priv->is_charging = FALSE;
             plugin->priv->charger_connected = TRUE;
-			break;
+            break;
 
         case UPOWER_STATE_CHARGING:
             plugin->priv->is_discharging = FALSE;
