@@ -1,9 +1,8 @@
-status-area-applet-battery (1.1.1-1) unstable; urgency=medium
+status-area-applet-battery (1.1.2-1) unstable; urgency=medium
 
-  * Remove vendor matching when searching for battery
-  * Add dependency on mediaplayer-l10n
+  * Properly deal with PENDING_DISCHARGE
 
- -- Ivan J. <parazyd@dyne.org>  Thu, 15 Feb 2018 20:02:00 +0100
+ -- Merlijn B.W. Wajer <merlijn@wizzup.org>  Thu, 21 Feb 2018 22:40:00 +0100
 
 status-area-applet-battery (1.1-1) unstable; urgency=medium
 
