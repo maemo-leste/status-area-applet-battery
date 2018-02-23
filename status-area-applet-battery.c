@@ -517,6 +517,16 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
             plugin->priv->is_discharging = FALSE;
             plugin->priv->is_charging = FALSE;
             plugin->priv->charger_connected = TRUE;
+            plugin->priv->active_time = 0;
+            break;
+
+        /* Similar to pending discharge, but I think this might change in
+         * the future */
+        case UPOWER_STATE_FULLY_CHARGED:
+            plugin->priv->is_discharging = FALSE;
+            plugin->priv->is_charging = FALSE;
+            plugin->priv->charger_connected = TRUE;
+            plugin->priv->active_time = 0;
             break;
 
         case UPOWER_STATE_CHARGING:
