@@ -557,10 +557,14 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
     battery_status_plugin_update_icon(plugin, bars);
 
 
-    if (plugin->priv->percentage < 10) {
-        battery_status_plugin_battery_low(plugin);
-    } else if (plugin->priv->percentage < 5) {
-        battery_status_plugin_battery_empty(plugin);
+    // If the battery is not calibrated, let's not call battery low all the
+    // time.
+    if (plugin->priv->current > 0 && plugin->priv->design > 0) {
+        if (plugin->priv->percentage < 10) {
+            battery_status_plugin_battery_low(plugin);
+        } else if (plugin->priv->percentage < 5) {
+            battery_status_plugin_battery_empty(plugin);
+        }
     }
 }
 
