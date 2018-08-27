@@ -1,3 +1,9 @@
+status-area-applet-battery (1.1.4-1) unstable; urgency=medium
+
+  * Silence battery low notifications on uncalibrated battery
+
+ -- Merlijn B.W. Wajer <merlijn@wizzup.org>  Thu, 24 Feb 2018 00:49:00 +0100
+
 status-area-applet-battery (1.1.3-1) unstable; urgency=medium
 
   * Add fully charged state
