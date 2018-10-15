@@ -1,0 +1,4 @@
+Status Bar Battery plugin
+=========================
+* Provides status bar plugin to visualize battery status
+* Provides estimation for battery time left for idle and use scenarios
