@@ -70,19 +70,19 @@ struct _BatteryStatusAreaItemPrivate {
   GtkWidget *title;
   GtkWidget *value;
   GtkWidget *image;
-  DBusConnection *sysbus_conn;
+  DBusConnection *dbus_conn;
   ca_context *context;
   ca_proplist *pl;
   GConfClient *gconf;
   guint gconf_notify;
-  guint charger_timer;
+  guint timer_id;
   int percentage;
   int current;
   int design;
   int idle_time;
   int active_time;
   int bars;
-  int charging_id;
+  int charging_idx;
   gboolean is_charging;
   gboolean is_discharging;
   gboolean charger_connected;
@@ -294,25 +294,25 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
 }
 
 static gboolean
-battery_status_plugin_charging_timeout(gpointer data)
+battery_status_plugin_animation(gpointer data)
 {
   BatteryStatusAreaItem *plugin = data;
   int bars = plugin->priv->bars;
 
-  if (!plugin->priv->charger_timer)
+  if (!plugin->priv->timer_id)
     return FALSE;
 
   if (plugin->priv->is_charging && plugin->priv->is_discharging)
     return FALSE;
 
   if (bars == 0 || !plugin->priv->show_charge_charging)
-    plugin->priv->charging_id = 1 + plugin->priv->charging_id % 8; /* id is 1..8 */
+    plugin->priv->charging_idx = 1 + plugin->priv->charging_idx % 8; /* id is 1..8 */
   else if (bars == 8)
-    plugin->priv->charging_id = 7 + plugin->priv->charging_id % 2; /* id is 7..8 */
+    plugin->priv->charging_idx = 7 + plugin->priv->charging_idx % 2; /* id is 7..8 */
   else
-    plugin->priv->charging_id = bars +( plugin->priv->charging_id - bars + 1 ) %( 9 - bars ); /* id is bars..8 */
+    plugin->priv->charging_idx = bars +( plugin->priv->charging_idx - bars + 1 ) %( 9 - bars ); /* id is bars..8 */
 
-  battery_status_plugin_update_icon(plugin, plugin->priv->charging_id);
+  battery_status_plugin_update_icon(plugin, plugin->priv->charging_idx);
   return TRUE;
 }
 
@@ -330,41 +330,41 @@ battery_status_plugin_charger_disconnected(BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_animation_maybe_start(BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_start(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->display_is_off || !plugin->priv->is_charging || plugin->priv->is_discharging)
     return;
 
-  if (plugin->priv->charger_timer == 0)
+  if (plugin->priv->timer_id == 0)
   {
-    plugin->priv->charging_id = plugin->priv->bars;
-    plugin->priv->charger_timer = g_timeout_add_seconds(1, battery_status_plugin_charging_timeout, plugin);
+    plugin->priv->charging_idx = plugin->priv->bars;
+    plugin->priv->timer_id = g_timeout_add_seconds(1, battery_status_plugin_animation, plugin);
   }
 }
 
 static void
-battery_status_plugin_animation_maybe_stop(BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_stop(BatteryStatusAreaItem *plugin)
 {
-  if (plugin->priv->charger_timer > 0)
+  if (plugin->priv->timer_id > 0)
   {
-    g_source_remove(plugin->priv->charger_timer);
-    plugin->priv->charger_timer = 0;
+    g_source_remove(plugin->priv->timer_id);
+    plugin->priv->timer_id = 0;
   }
 }
 
 static void
 battery_status_plugin_charging_start(BatteryStatusAreaItem *plugin)
 {
-  battery_status_plugin_animation_maybe_start(plugin);
+  battery_status_plugin_animation_start(plugin);
 }
 
 static void
 battery_status_plugin_charging_stop(BatteryStatusAreaItem *plugin)
 {
-  if (plugin->priv->charger_timer > 0 && plugin->priv->is_charging && plugin->priv->is_discharging)
+  if (plugin->priv->timer_id > 0 && plugin->priv->is_charging && plugin->priv->is_discharging)
     hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_full"));
 
-  battery_status_plugin_animation_maybe_stop(plugin);
+  battery_status_plugin_animation_stop(plugin);
 
   if (plugin->priv->charger_connected && !(plugin->priv->is_charging && plugin->priv->is_discharging))
   {
@@ -410,12 +410,12 @@ battery_status_plugin_dbus_display(DBusConnection *connection,
   if (display_is_off && !plugin->priv->display_is_off)
   {
     plugin->priv->display_is_off = TRUE;
-    battery_status_plugin_animation_maybe_stop(plugin);
+    battery_status_plugin_animation_stop(plugin);
   }
   else if (!display_is_off && plugin->priv->display_is_off)
   {
     plugin->priv->display_is_off = FALSE;
-    battery_status_plugin_animation_maybe_start(plugin);
+    battery_status_plugin_animation_start(plugin);
     battery_status_plugin_update_text(plugin);
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
       battery_status_plugin_update_icon(plugin, 8);
@@ -494,7 +494,7 @@ battery_status_plugin_gconf_notify(GConfClient *client,
 }
 
 static void
-on_property_changed(BatteryData *dat, void *user_data)
+on_property_changed(BatteryData *data, void *user_data)
 {
   BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem *)user_data;
 
@@ -508,14 +508,14 @@ on_property_changed(BatteryData *dat, void *user_data)
   /* FIXME: This will make current and design vary over time since voltage
    * is not constant(!) but rather the current voltage.
    * The values are provided in /sys, but UPower does not pass them to us. */
-  plugin->priv->current = (int)(1000 * dat->energy_now / dat->voltage);
-  plugin->priv->design = (int)(1000 * dat->energy_full / dat->voltage);
+  plugin->priv->current = (int)(1000 * data->energy_now / data->voltage);
+  plugin->priv->design = (int)(1000 * data->energy_full / data->voltage);
 
-  plugin->priv->percentage = (int)dat->percentage;
+  plugin->priv->percentage = (int)data->percentage;
 
-  bars = (int)(8 *(6.25 + dat->percentage) / 100);
+  bars = (int)(8 *(6.25 + data->percentage) / 100);
 
-  switch(dat->state)
+  switch(data->state)
   {
     case UPOWER_STATE_UNKNOWN:
     case UPOWER_STATE_DISCHARGING:
@@ -524,7 +524,7 @@ on_property_changed(BatteryData *dat, void *user_data)
       plugin->priv->is_discharging = TRUE;
       plugin->priv->is_charging = FALSE;
       plugin->priv->charger_connected = FALSE;
-      plugin->priv->active_time = dat->time_to_empty;
+      plugin->priv->active_time = data->time_to_empty;
       break;
 
     case UPOWER_STATE_PENDING_DISCHARGE:
@@ -547,7 +547,7 @@ on_property_changed(BatteryData *dat, void *user_data)
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = TRUE;
       plugin->priv->charger_connected = TRUE;
-      plugin->priv->active_time = dat->time_to_full;
+      plugin->priv->active_time = data->time_to_full;
       break;
   }
 
@@ -607,7 +607,7 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 
   dbus_error_init(&error);
 
-  plugin->priv->sysbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+  plugin->priv->dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
   if (dbus_error_is_set(&error))
   {
     g_warning("Could not open D-Bus session bus connection");
@@ -763,8 +763,8 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   battery_status_plugin_update_icon(plugin, 0);
   battery_status_plugin_update_text(plugin);
 
-  dbus_bus_add_match(plugin->priv->sysbus_conn, DBUS_MATCH_RULE, NULL);
-  dbus_connection_add_filter(plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
+  dbus_bus_add_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
+  dbus_connection_add_filter(plugin->priv->dbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
 
   gtk_container_add(GTK_CONTAINER(plugin), event_box);
   gtk_widget_show_all(GTK_WIDGET(plugin));
@@ -802,20 +802,20 @@ battery_status_plugin_finalize(GObject *object)
 
   free_bat();
 
-  if (plugin->priv->sysbus_conn)
+  if (plugin->priv->dbus_conn)
   {
-    dbus_connection_unref(plugin->priv->sysbus_conn);
-    plugin->priv->sysbus_conn = NULL;
+    dbus_connection_unref(plugin->priv->dbus_conn);
+    plugin->priv->dbus_conn = NULL;
   }
 
-  if (plugin->priv->charger_timer > 0)
+  if (plugin->priv->timer_id > 0)
   {
-    g_source_remove(plugin->priv->charger_timer);
-    plugin->priv->charger_timer = 0;
+    g_source_remove(plugin->priv->timer_id);
+    plugin->priv->timer_id = 0;
   }
 
-  dbus_bus_remove_match(plugin->priv->sysbus_conn, DBUS_MATCH_RULE, NULL);
-  dbus_connection_remove_filter(plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin);
+  dbus_bus_remove_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
+  dbus_connection_remove_filter(plugin->priv->dbus_conn, battery_status_plugin_dbus_display, plugin);
 
   hd_status_plugin_item_set_status_area_icon(HD_STATUS_PLUGIN_ITEM(plugin), NULL);
 
