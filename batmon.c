@@ -51,14 +51,18 @@ typedef struct {
 } PrivData;
 
 
-UPowerDevice* alloc_upower_device(void) {
+UPowerDevice *
+alloc_upower_device(void)
+{
   UPowerDevice *dev;
   dev = calloc(1, sizeof(UPowerDevice));
   return dev;
 }
 
 
-void free_upower_device(UPowerDevice* dev) {
+void
+free_upower_device(UPowerDevice* dev)
+{
   if (dev->upower_path)
     g_free(dev->upower_path);
   free(dev);
@@ -70,7 +74,9 @@ static PrivData private = { .dev = NULL,
   .user_data = NULL };
 
 
-GVariant* get_device_properties(GDBusConnection* bus, gchar* device) {
+GVariant *
+get_device_properties(GDBusConnection* bus, gchar* device)
+{
   GVariant *res;
   GError *error = NULL;
 
@@ -101,7 +107,9 @@ GVariant* get_device_properties(GDBusConnection* bus, gchar* device) {
   return tmp;
 }
 
-UPowerDevice* get_device(GVariant *device_properties) {
+UPowerDevice *
+get_device(GVariant *device_properties)
+{
   UPowerDevice *dev;
   GVariantDict *dict;
 
@@ -117,13 +125,17 @@ UPowerDevice* get_device(GVariant *device_properties) {
   return dev;
 }
 
-gboolean want_device(UPowerDevice *dev) {
+gboolean
+want_device(UPowerDevice *dev)
+{
   return (dev->type == UPOWER_TYPE_BATTERY) &&
     /* Check for sensible technology value to rule out non-batteries */
     (dev->technology != UPOWER_TECHNOLOGY_UNKNOWN);
 }
 
-UPowerDevice* find_battery_device(GDBusConnection* bus) {
+UPowerDevice *
+find_battery_device(GDBusConnection* bus)
+{
   GVariantIter* iter;
   GVariant* res = NULL;
   GError* error = NULL;
@@ -194,7 +206,9 @@ UPowerDevice* find_battery_device(GDBusConnection* bus) {
     return 0; \
   }
 
-int update_property(const gchar* name, GVariant* value) {
+int
+update_property(const gchar* name, GVariant* value)
+{
   _UPDATE_BATT_DATA("Percentage", &private.data.percentage, "d");
   _UPDATE_BATT_DATA("Voltage", &private.data.voltage, "d");
   _UPDATE_BATT_DATA("Temperature", &private.data.temperature, "d");
@@ -220,10 +234,12 @@ int update_property(const gchar* name, GVariant* value) {
 
 
 /* Inspiration taken from gio/tests/gdbus-example-watch-proxy.c */
-static void on_properties_changed(GDBusProxy *proxy,
-                                  GVariant *changed_properties,
-                                  const gchar* const *invalidated_properties,
-                                  gpointer user_data) {
+static void
+on_properties_changed(GDBusProxy *proxy,
+                      GVariant *changed_properties,
+                      const gchar* const *invalidated_properties,
+                      gpointer user_data)
+{
   (void)proxy;
   (void)user_data;
   (void)invalidated_properties;
@@ -246,7 +262,9 @@ static void on_properties_changed(GDBusProxy *proxy,
 }
 
 /* Inspiration taken from gio/tests/gdbus-example-watch-proxy.c */
-static void get_initial_properties_from_proxy(GDBusProxy *proxy) {
+static void
+get_initial_properties_from_proxy(GDBusProxy *proxy)
+{
   gchar **property_names;
   guint n;
 
@@ -260,7 +278,9 @@ static void get_initial_properties_from_proxy(GDBusProxy *proxy) {
   g_strfreev(property_names);
 }
 
-int monitor_battery(void) {
+int
+monitor_battery(void)
+{
   GDBusProxyFlags flags = G_DBUS_PROXY_FLAGS_NONE;
   GError *error = NULL;
 
@@ -284,7 +304,9 @@ int monitor_battery(void) {
   return 0;
 }
 
-int init_batt(void) {
+int
+init_batt(void)
+{
   GDBusConnection *bus = NULL;
   GError *error = NULL;
 
@@ -315,29 +337,39 @@ int init_batt(void) {
   return 0;
 }
 
-void set_batt_cb(BatteryCallback *cb, void* user_data) {
+void
+set_batt_cb(BatteryCallback *cb, void* user_data)
+{
   private.cb = cb;
   private.user_data = user_data;
 }
 
-BatteryData *get_batt_data(void) {
+BatteryData *
+get_batt_data(void)
+{
   return &(private.data);
 }
 
-void free_batt(void) {
+void
+free_batt(void)
+{
   free_upower_device(private.dev);
   g_object_unref(private.proxy);
 }
 
 #if 0
-void testf(BatteryData *d) {
+void
+testf(BatteryData *d)
+{
   (void)d;
   fprintf(stderr, "Test callback\n");
   return;
 }
 #endif
 
-int main_loop(void) {
+int
+main_loop(void)
+{
   static GMainLoop *loop = NULL;
 
   if (init_batt()) {

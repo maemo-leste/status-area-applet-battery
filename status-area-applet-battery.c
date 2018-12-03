@@ -94,12 +94,12 @@ struct _BatteryStatusAreaItemPrivate
   const char *exec_application;
 };
 
-GType battery_status_plugin_get_type (void);
+GType battery_status_plugin_get_type(void);
 
 HD_DEFINE_PLUGIN_MODULE (BatteryStatusAreaItem, battery_status_plugin, HD_TYPE_STATUS_MENU_ITEM);
 
 static gboolean
-battery_status_plugin_replay_sound (gpointer data)
+battery_status_plugin_replay_sound(gpointer data)
 {
   BatteryStatusAreaItem *plugin = data;
   ca_context_play_full (plugin->priv->context, 1, plugin->priv->pl, NULL, NULL);
@@ -107,7 +107,9 @@ battery_status_plugin_replay_sound (gpointer data)
 }
 
 static void
-battery_status_plugin_play_sound (BatteryStatusAreaItem *plugin, const char *file, gboolean repeat)
+battery_status_plugin_play_sound(BatteryStatusAreaItem *plugin,
+                                 const char *file,
+                                 gboolean repeat)
 {
   int volume = profile_get_value_as_int (NULL, "system.sound.level");
 
@@ -129,7 +131,7 @@ battery_status_plugin_play_sound (BatteryStatusAreaItem *plugin, const char *fil
 }
 
 static void
-battery_status_plugin_update_icon (BatteryStatusAreaItem *plugin, int id)
+battery_status_plugin_update_icon(BatteryStatusAreaItem *plugin, int id)
 {
   const char *name;
   GdkPixbuf *pixbuf;
@@ -186,7 +188,10 @@ battery_status_plugin_update_icon (BatteryStatusAreaItem *plugin, int id)
 }
 
 static gint
-battery_status_plugin_str_time (BatteryStatusAreaItem *plugin, gchar *ptr, gulong n, int time)
+battery_status_plugin_str_time(BatteryStatusAreaItem *plugin,
+                               gchar *ptr,
+                               gulong n,
+                               int time)
 {
   int num;
   const char *str;
@@ -233,7 +238,7 @@ battery_status_plugin_str_time (BatteryStatusAreaItem *plugin, gchar *ptr, gulon
 }
 
 static void
-battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
+battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
 {
   gchar text[64];
   gchar *ptr;
@@ -286,7 +291,7 @@ battery_status_plugin_update_text (BatteryStatusAreaItem *plugin)
 }
 
 static gboolean
-battery_status_plugin_charging_timeout (gpointer data)
+battery_status_plugin_charging_timeout(gpointer data)
 {
   BatteryStatusAreaItem *plugin = data;
   int bars = plugin->priv->bars;
@@ -309,20 +314,20 @@ battery_status_plugin_charging_timeout (gpointer data)
 }
 
 static void
-battery_status_plugin_charger_connected (BatteryStatusAreaItem *plugin)
+battery_status_plugin_charger_connected(BatteryStatusAreaItem *plugin)
 {
   hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_charging"));
   battery_status_plugin_play_sound (plugin, "/usr/share/sounds/ui-charging_started.wav", FALSE);
 }
 
 static void
-battery_status_plugin_charger_disconnected (BatteryStatusAreaItem *plugin)
+battery_status_plugin_charger_disconnected(BatteryStatusAreaItem *plugin)
 {
   hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_disconnect_charger"));
 }
 
 static void
-battery_status_plugin_animation_maybe_start (BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_maybe_start(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->display_is_off || !plugin->priv->is_charging || plugin->priv->is_discharging)
     return;
@@ -335,7 +340,7 @@ battery_status_plugin_animation_maybe_start (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_animation_maybe_stop (BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_maybe_stop(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->charger_timer > 0)
   {
@@ -345,13 +350,13 @@ battery_status_plugin_animation_maybe_stop (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_charging_start (BatteryStatusAreaItem *plugin)
+battery_status_plugin_charging_start(BatteryStatusAreaItem *plugin)
 {
   battery_status_plugin_animation_maybe_start (plugin);
 }
 
 static void
-battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
+battery_status_plugin_charging_stop(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->charger_timer > 0 && plugin->priv->is_charging && plugin->priv->is_discharging)
     hildon_banner_show_information (GTK_WIDGET (plugin), NULL, dgettext ("osso-dsm-ui", "incf_ib_battery_full"));
@@ -381,7 +386,9 @@ battery_status_plugin_charging_stop (BatteryStatusAreaItem *plugin)
 }
 
 static DBusHandlerResult
-battery_status_plugin_dbus_display (DBusConnection *connection G_GNUC_UNUSED, DBusMessage *message, void *data)
+battery_status_plugin_dbus_display(DBusConnection *connection G_GNUC_UNUSED,
+                                   DBusMessage *message,
+                                   void *data)
 {
   BatteryStatusAreaItem *plugin = data;
   char *status = NULL;
@@ -419,7 +426,7 @@ battery_status_plugin_dbus_display (DBusConnection *connection G_GNUC_UNUSED, DB
 }
 
 static void
-battery_status_plugin_battery_empty (BatteryStatusAreaItem *plugin)
+battery_status_plugin_battery_empty(BatteryStatusAreaItem *plugin)
 {
   hildon_banner_show_information_override_dnd (GTK_WIDGET (plugin), dgettext ("osso-dsm-ui", "incf_ib_battery_recharge"));
   battery_status_plugin_update_icon (plugin, -1);
@@ -427,7 +434,7 @@ battery_status_plugin_battery_empty (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_battery_low (BatteryStatusAreaItem *plugin)
+battery_status_plugin_battery_low(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->low_last_reported < time (NULL) && plugin->priv->low_last_reported + 30 > time (NULL))
     return;
@@ -440,7 +447,7 @@ battery_status_plugin_battery_low (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
+battery_status_plugin_update_charger(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->charger_connected)
     battery_status_plugin_charger_connected (plugin);
@@ -452,7 +459,7 @@ battery_status_plugin_update_charger (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin)
+battery_status_plugin_update_charging(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->is_charging && !plugin->priv->is_discharging)
     battery_status_plugin_charging_start (plugin);
@@ -461,7 +468,10 @@ battery_status_plugin_update_charging (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnxn_id G_GNUC_UNUSED, GConfEntry *entry, gpointer data)
+battery_status_plugin_gconf_notify(GConfClient *client G_GNUC_UNUSED,
+                                   guint cnxn_id G_GNUC_UNUSED,
+                                   GConfEntry *entry,
+                                   gpointer data)
 {
   BatteryStatusAreaItem *plugin = data;
   const char *key = gconf_entry_get_key (entry);
@@ -482,7 +492,9 @@ battery_status_plugin_gconf_notify (GConfClient *client G_GNUC_UNUSED, guint cnx
   }
 }
 
-static void on_property_changed(BatteryData *dat, void* user_data) {
+static void
+on_property_changed(BatteryData *dat, void* user_data)
+{
   BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem*)user_data;
 
   int bars;
@@ -569,7 +581,9 @@ static void on_property_changed(BatteryData *dat, void* user_data) {
 }
 
 static gboolean
-battery_status_plugin_on_button_clicked_cb (GtkWidget *widget G_GNUC_UNUSED, GdkEvent *event G_GNUC_UNUSED, gpointer user_data)
+battery_status_plugin_on_button_clicked_cb(GtkWidget *widget G_GNUC_UNUSED,
+                                           GdkEvent *event G_GNUC_UNUSED,
+                                           gpointer user_data)
 {
   BatteryStatusAreaItem *plugin = user_data;
 
@@ -580,7 +594,7 @@ battery_status_plugin_on_button_clicked_cb (GtkWidget *widget G_GNUC_UNUSED, Gdk
 }
 
 static void
-battery_status_plugin_init (BatteryStatusAreaItem *plugin)
+battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 {
   DBusError error;
   GtkWidget *alignment;
@@ -756,7 +770,7 @@ battery_status_plugin_init (BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_finalize (GObject *object)
+battery_status_plugin_finalize(GObject *object)
 {
   BatteryStatusAreaItem *plugin = G_TYPE_CHECK_INSTANCE_CAST (object, battery_status_plugin_get_type (), BatteryStatusAreaItem);
 
@@ -808,7 +822,7 @@ battery_status_plugin_finalize (GObject *object)
 }
 
 static void
-battery_status_plugin_class_init (BatteryStatusAreaItemClass *klass)
+battery_status_plugin_class_init(BatteryStatusAreaItemClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
@@ -818,6 +832,6 @@ battery_status_plugin_class_init (BatteryStatusAreaItemClass *klass)
 }
 
 static void
-battery_status_plugin_class_finalize (BatteryStatusAreaItemClass *klass G_GNUC_UNUSED)
+battery_status_plugin_class_finalize(BatteryStatusAreaItemClass *klass G_GNUC_UNUSED)
 {
 }
