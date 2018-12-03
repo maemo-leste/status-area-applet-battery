@@ -60,7 +60,7 @@ alloc_upower_device(void)
 }
 
 
-void
+static void
 free_upower_device(UPowerDevice *dev)
 {
   if (dev->upower_path)
@@ -74,7 +74,7 @@ static PrivData private = { .dev = NULL,
   .user_data = NULL };
 
 
-GVariant *
+static GVariant *
 get_device_properties(GDBusConnection *bus, gchar *device)
 {
   GVariant *res;
@@ -108,7 +108,7 @@ get_device_properties(GDBusConnection *bus, gchar *device)
   return tmp;
 }
 
-UPowerDevice *
+static UPowerDevice *
 get_device(GVariant *device_properties)
 {
   UPowerDevice *dev;
@@ -126,7 +126,7 @@ get_device(GVariant *device_properties)
   return dev;
 }
 
-gboolean
+static gboolean
 want_device(UPowerDevice *dev)
 {
   return (dev->type == UPOWER_TYPE_BATTERY) &&
@@ -134,7 +134,7 @@ want_device(UPowerDevice *dev)
     (dev->technology != UPOWER_TECHNOLOGY_UNKNOWN);
 }
 
-UPowerDevice *
+static UPowerDevice *
 find_battery_device(GDBusConnection *bus)
 {
   GVariantIter *iter;
@@ -211,7 +211,7 @@ find_battery_device(GDBusConnection *bus)
     return 0; \
   }
 
-int
+static int
 update_property(const gchar *name, GVariant *value)
 {
   _UPDATE_BATT_DATA("Percentage", &private.data.percentage, "d");
@@ -283,7 +283,7 @@ get_initial_properties_from_proxy(GDBusProxy *proxy)
   g_strfreev(property_names);
 }
 
-int
+static int
 monitor_battery(void)
 {
   GDBusProxyFlags flags = G_DBUS_PROXY_FLAGS_NONE;
@@ -367,7 +367,7 @@ free_batt(void)
 }
 
 #if 0
-void
+static void
 testf(BatteryData *d)
 {
   (void)d;
@@ -376,7 +376,7 @@ testf(BatteryData *d)
 }
 #endif
 
-int
+static int
 main_loop(void)
 {
   static GMainLoop *loop = NULL;
