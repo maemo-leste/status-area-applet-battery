@@ -244,17 +244,17 @@ on_properties_changed(GDBusProxy *proxy,
   (void)user_data;
   (void)invalidated_properties;
 
-  if (g_variant_n_children (changed_properties) > 0)
+  if (g_variant_n_children(changed_properties) > 0)
   {
     GVariantIter *iter;
     const gchar *key;
     GVariant *value;
 
-    g_variant_get (changed_properties, "a{sv}", &iter);
-    while (g_variant_iter_loop (iter, "{&sv}", &key, &value)) {
+    g_variant_get(changed_properties, "a{sv}", &iter);
+    while (g_variant_iter_loop(iter, "{&sv}", &key, &value)) {
       update_property(key, value);
     }
-    g_variant_iter_free (iter);
+    g_variant_iter_free(iter);
   }
 
   if (private.cb)
@@ -391,7 +391,7 @@ main_loop(void)
 
 #if 0
 int
-main (int argc, char *argv[])
+main(int argc, char *argv[])
 {
   (void)argc;
   (void)argv;
