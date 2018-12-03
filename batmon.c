@@ -245,10 +245,6 @@ on_properties_changed(GDBusProxy *proxy,
                       const gchar *const *invalidated_properties,
                       gpointer user_data)
 {
-  (void)proxy;
-  (void)user_data;
-  (void)invalidated_properties;
-
   if (g_variant_n_children(changed_properties) > 0)
   {
     GVariantIter *iter;
@@ -370,7 +366,6 @@ free_batt(void)
 static void
 testf(BatteryData *d)
 {
-  (void)d;
   fprintf(stderr, "Test callback\n");
   return;
 }
@@ -402,9 +397,6 @@ main_loop(void)
 int
 main(int argc, char *argv[])
 {
-  (void)argc;
-  (void)argv;
-
   main_loop();
 }
 #endif

@@ -383,7 +383,7 @@ battery_status_plugin_charging_stop(BatteryStatusAreaItem *plugin)
 }
 
 static DBusHandlerResult
-battery_status_plugin_dbus_display(DBusConnection *connection G_GNUC_UNUSED,
+battery_status_plugin_dbus_display(DBusConnection *connection,
                                    DBusMessage *message,
                                    void *data)
 {
@@ -465,8 +465,8 @@ battery_status_plugin_update_charging(BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_gconf_notify(GConfClient *client G_GNUC_UNUSED,
-                                   guint cnxn_id G_GNUC_UNUSED,
+battery_status_plugin_gconf_notify(GConfClient *client,
+                                   guint cnxn_id,
                                    GConfEntry *entry,
                                    gpointer data)
 {
@@ -578,8 +578,8 @@ on_property_changed(BatteryData *dat, void *user_data)
 }
 
 static gboolean
-battery_status_plugin_on_button_clicked_cb(GtkWidget *widget G_GNUC_UNUSED,
-                                           GdkEvent *event G_GNUC_UNUSED,
+battery_status_plugin_on_button_clicked_cb(GtkWidget *widget,
+                                           GdkEvent *event,
                                            gpointer user_data)
 {
   BatteryStatusAreaItem *plugin = user_data;
@@ -830,6 +830,6 @@ battery_status_plugin_class_init(BatteryStatusAreaItemClass *klass)
 }
 
 static void
-battery_status_plugin_class_finalize(BatteryStatusAreaItemClass *klass G_GNUC_UNUSED)
+battery_status_plugin_class_finalize(BatteryStatusAreaItemClass *klass)
 {
 }
