@@ -3,7 +3,8 @@ Section: x11
 Priority: extra
 Maintainer: Ivan J. <parazyd@dyne.org>
 Uploaders: Pali Rohár <pali.rohar@gmail.com>, Merlijn Wajer <merlijn@wizzup.org>
-Build-Depends: debhelper (>= 5),
+Build-Depends:
+ debhelper (>= 9),
  pkg-config,
  libhildon1-dev,
  libhildondesktop1-dev,
