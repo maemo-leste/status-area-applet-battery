@@ -32,8 +32,7 @@
  * /usr/share/dbus-1/interfaces/org.freedesktop.UPower.Device.xml */
 
 /** Values for upower device State property */
-enum
-{
+enum {
   UPOWER_STATE_UNKNOWN           = 0,
   UPOWER_STATE_CHARGING          = 1,
   UPOWER_STATE_DISCHARGING       = 2,
@@ -44,8 +43,7 @@ enum
 };
 
 /** Values for upower device Type property */
-enum
-{
+enum {
   UPOWER_TYPE_UNKNOWN    = 0,
   UPOWER_TYPE_LINE_POWER = 1,
   UPOWER_TYPE_BATTERY    = 2,
@@ -58,8 +56,7 @@ enum
 };
 
 /** Values for upower device Technology property */
-enum
-{
+enum {
   UPOWER_TECHNOLOGY_UNKNOWN                = 0,
   UPOWER_TECHNOLOGY_LITHIUM_ION            = 1,
   UPOWER_TECHNOLOGY_LITHIUM_POLYMER        = 2,

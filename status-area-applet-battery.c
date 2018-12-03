@@ -54,19 +54,16 @@ typedef struct _BatteryStatusAreaItem        BatteryStatusAreaItem;
 typedef struct _BatteryStatusAreaItemClass   BatteryStatusAreaItemClass;
 typedef struct _BatteryStatusAreaItemPrivate BatteryStatusAreaItemPrivate;
 
-struct _BatteryStatusAreaItem
-{
+struct _BatteryStatusAreaItem {
   HDStatusMenuItem parent;
   BatteryStatusAreaItemPrivate *priv;
 };
 
-struct _BatteryStatusAreaItemClass
-{
+struct _BatteryStatusAreaItemClass {
   HDStatusMenuItemClass parent_class;
 };
 
-struct _BatteryStatusAreaItemPrivate
-{
+struct _BatteryStatusAreaItemPrivate {
   GtkWidget *title;
   GtkWidget *value;
   GtkWidget *image;
