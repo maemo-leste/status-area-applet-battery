@@ -44,6 +44,9 @@
 #define GCONF_USE_DESIGN_KEY GCONF_PATH "/use_design_capacity"
 #define GCONF_SHOW_CHARGE_CHARGING_KEY GCONF_PATH "/show_charge_charging"
 #define GCONF_EXEC_APPLICATION GCONF_PATH "/exec_application"
+#define DBUS_MATCH_RULE "type='signal',path='/com/nokia/mce/signal'," \
+                        "interface='com.nokia.mce.signal'," \
+                        "member='display_status_ind'"
 
 
 /** Whether to support legacy pattery low led pattern; nonzero for yes */
@@ -93,7 +96,9 @@ struct _BatteryStatusAreaItemPrivate {
 
 GType battery_status_plugin_get_type(void);
 
-HD_DEFINE_PLUGIN_MODULE(BatteryStatusAreaItem, battery_status_plugin, HD_TYPE_STATUS_MENU_ITEM);
+HD_DEFINE_PLUGIN_MODULE(BatteryStatusAreaItem,
+                        battery_status_plugin,
+                        HD_TYPE_STATUS_MENU_ITEM);
 
 static gboolean
 battery_status_plugin_replay_sound(gpointer data)
@@ -238,50 +243,51 @@ static void
 battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
 {
   gchar text[64];
-  gchar *ptr;
+  gchar *ptr, *limit;
 
   if (plugin->priv->display_is_off)
     return;
 
-  ptr = text;
-  ptr[0] = 0;
+  ptr    = text;
+  limit  = &text[sizeof(text)];
+  ptr[0] = '\0';
 
-  ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
+  ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
   if (plugin->priv->is_charging && plugin->priv->is_discharging)
-    ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charged"));
+    ptr += g_snprintf(ptr, limit - ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charged"));
   else if (!plugin->priv->is_charging)
-    ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "%d%%", plugin->priv->percentage);
+    ptr += g_snprintf(ptr, limit - ptr, "%d%%", plugin->priv->percentage);
   else
   {
     if (plugin->priv->percentage != 0)
-      ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "%d%% ", plugin->priv->percentage);
-    ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charging"));
+      ptr += g_snprintf(ptr, limit - ptr, "%d%% ", plugin->priv->percentage);
+    ptr += g_snprintf(ptr, limit - ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charging"));
   }
 
   gtk_label_set_text(GTK_LABEL(plugin->priv->title), text);
 
   ptr = text;
-  ptr[0] = 0;
+  ptr[0] = '\0';
 
   if (plugin->priv->current > 0 && plugin->priv->design > 0)
   {
-    ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "%d/%d mAh", plugin->priv->current, plugin->priv->design);
+    ptr += g_snprintf(ptr, limit - ptr, "%d/%d mAh", plugin->priv->current, plugin->priv->design);
 
     if ((!plugin->priv->is_charging || !plugin->priv->is_discharging) && plugin->priv->active_time)
     {
-      ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "  ");
-      ptr += battery_status_plugin_str_time(plugin, ptr, text+sizeof(text)-ptr, plugin->priv->active_time);
+      ptr += g_snprintf(ptr, limit - ptr, "  ");
+      ptr += battery_status_plugin_str_time(plugin, ptr, limit - ptr, plugin->priv->active_time);
       if (!plugin->priv->is_charging && plugin->priv->idle_time)
       {
-        ptr += g_snprintf(ptr, text+sizeof(text)-ptr, " / ");
-        ptr += battery_status_plugin_str_time(plugin, ptr, text+sizeof(text)-ptr, plugin->priv->idle_time);
+        ptr += g_snprintf(ptr, limit - ptr, " / ");
+        ptr += battery_status_plugin_str_time(plugin, ptr, limit - ptr, plugin->priv->idle_time);
       }
     }
   }
   else
   {
-    ptr += g_snprintf(ptr, text+sizeof(text)-ptr, "No data or battery is not calibrated");
+    ptr += g_snprintf(ptr, limit - ptr, "No data or battery is not calibrated");
   }
 
   gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
@@ -391,14 +397,12 @@ battery_status_plugin_dbus_display(DBusConnection *connection,
   char *status = NULL;
   gboolean display_is_off = FALSE;
 
-  if (!dbus_message_is_signal(message, "com.nokia.mce.signal", "display_status_ind"))
+  if (!dbus_message_is_signal(message, "com.nokia.mce.signal", "display_status_ind") ||
+      g_strcmp0(dbus_message_get_path(message), "/com/nokia/mce/signal") ||
+      !dbus_message_get_args(message, NULL, DBUS_TYPE_STRING, &status, DBUS_TYPE_INVALID))
+  {
     return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  if (g_strcmp0(dbus_message_get_path(message), "/com/nokia/mce/signal"))
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-
-  if (!dbus_message_get_args(message, NULL, DBUS_TYPE_STRING, &status, DBUS_TYPE_INVALID))
-    return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+  }
 
   if (g_strcmp0(status, "off") == 0)
     display_is_off = TRUE;
@@ -566,8 +570,7 @@ on_property_changed(BatteryData *dat, void *user_data)
   battery_status_plugin_update_icon(plugin, bars);
 
 
-  // If the battery is not calibrated, let's not call battery low all the
-  // time.
+  /* If the battery is not calibrated, let's not call battery low all the time. */
   if (plugin->priv->current > 0 && plugin->priv->design > 0)
   {
     if (plugin->priv->percentage < 10)
@@ -760,7 +763,7 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   battery_status_plugin_update_icon(plugin, 0);
   battery_status_plugin_update_text(plugin);
 
-  dbus_bus_add_match(plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
+  dbus_bus_add_match(plugin->priv->sysbus_conn, DBUS_MATCH_RULE, NULL);
   dbus_connection_add_filter(plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
 
   gtk_container_add(GTK_CONTAINER(plugin), event_box);
@@ -811,7 +814,7 @@ battery_status_plugin_finalize(GObject *object)
     plugin->priv->charger_timer = 0;
   }
 
-  dbus_bus_remove_match(plugin->priv->sysbus_conn, "type='signal',path='/com/nokia/mce/signal',interface='com.nokia.mce.signal',member='display_status_ind'", NULL);
+  dbus_bus_remove_match(plugin->priv->sysbus_conn, DBUS_MATCH_RULE, NULL);
   dbus_connection_remove_filter(plugin->priv->sysbus_conn, battery_status_plugin_dbus_display, plugin);
 
   hd_status_plugin_item_set_status_area_icon(HD_STATUS_PLUGIN_ITEM(plugin), NULL);

@@ -21,7 +21,8 @@
 
 #ifndef _BATMON_H_
 #define _BATMON_H_
-#include <gio/gio.h>
+
+#include <glib.h>
 
 #include "upower-defs.h"
 
@@ -44,7 +45,8 @@ typedef struct {
 
   guint64 update_time;
 
-  gboolean calibrated; /* TODO set this */
+  /* TODO: set this */
+  gboolean calibrated;
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData *, void *);

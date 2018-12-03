@@ -23,6 +23,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <gio/gio.h>
+
 #include "batmon.h"
 
 /*
@@ -42,36 +44,21 @@ typedef struct {
 } UPowerDevice;
 
 /* Private data */
-typedef struct {
+static struct {
   UPowerDevice    *dev;
   GDBusProxy      *proxy;
   BatteryData      data;
   BatteryCallback *cb;
   void            *user_data;
-} PrivData;
-
-
-UPowerDevice *
-alloc_upower_device(void)
-{
-  UPowerDevice *dev;
-  dev = calloc(1, sizeof(UPowerDevice));
-  return dev;
-}
+} private = {0};
 
 
 static void
 free_upower_device(UPowerDevice *dev)
 {
-  if (dev->upower_path)
-    g_free(dev->upower_path);
-  free(dev);
+  g_free(dev->upower_path);
+  g_free(dev);
 }
-
-static PrivData private = { .dev = NULL,
-  .proxy = NULL,
-  .cb = NULL,
-  .user_data = NULL };
 
 
 static GVariant *
@@ -114,12 +101,12 @@ get_device(GVariant *device_properties)
   UPowerDevice *dev;
   GVariantDict *dict;
 
-  dev = alloc_upower_device();
+  dev = g_malloc0(sizeof(*dev));
 
   dict = g_variant_dict_new(device_properties);
 
-  g_variant_dict_lookup(dict, "Type", "u", &(dev->type));
-  g_variant_dict_lookup(dict, "Technology", "u", &(dev->technology));
+  g_variant_dict_lookup(dict, "Type", "u", &dev->type);
+  g_variant_dict_lookup(dict, "Technology", "u", &dev->technology);
 
   g_variant_dict_unref(dict);
 
@@ -141,6 +128,7 @@ find_battery_device(GDBusConnection *bus)
   GVariant *res = NULL;
   GError *error = NULL;
   UPowerDevice *result = NULL;
+  gsize i;
 
   res = g_dbus_connection_call_sync(bus,
                                     UPOWER_BUS_NAME,
@@ -166,7 +154,7 @@ find_battery_device(GDBusConnection *bus)
   GVariant *props;
 
   iter = g_variant_iter_new(tmp);
-  for (unsigned int i = 0;  i < g_variant_iter_n_children(iter);  i++)
+  for (i = 0;  i < g_variant_iter_n_children(iter);  i++)
   {
     GVariant *val;
     val = g_variant_iter_next_value(iter);
@@ -205,7 +193,7 @@ find_battery_device(GDBusConnection *bus)
 }
 
 #define _UPDATE_BATT_DATA(keyname, structname, keytype) \
-  if (strcmp(name, keyname) == 0) { \
+  if (!strcmp(name, keyname)) { \
     g_variant_get(value, keytype, structname); \
     fprintf(stderr, "*** UPDATING %s\n", keyname); \
     return 0; \
@@ -328,9 +316,6 @@ init_batt(void)
     return 1;
   }
 
-  /* Zero battery data structure */
-  memset(&(private.data), 0, sizeof(BatteryData));
-
   if (monitor_battery())
   {
     fprintf(stderr, "Failed to monitor events\n");
@@ -352,7 +337,7 @@ set_batt_cb(BatteryCallback *cb, void *user_data)
 BatteryData *
 get_batt_data(void)
 {
-  return &(private.data);
+  return &private.data;
 }
 
 void
@@ -369,7 +354,6 @@ testf(BatteryData *d)
   fprintf(stderr, "Test callback\n");
   return;
 }
-#endif
 
 static int
 main_loop(void)
@@ -381,9 +365,7 @@ main_loop(void)
     return 1;
   }
 
-#if 0
-  set_batt_cb(testf);
-#endif
+  //set_batt_cb(testf);
 
   loop = g_main_loop_new(NULL, FALSE);
   g_main_loop_run(loop);
@@ -393,7 +375,6 @@ main_loop(void)
   return 0;
 }
 
-#if 0
 int
 main(int argc, char *argv[])
 {
