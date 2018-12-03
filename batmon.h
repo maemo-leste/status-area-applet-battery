@@ -24,8 +24,6 @@
 
 #include <glib.h>
 
-#include "upower-defs.h"
-
 /* upower data */
 typedef struct {
   gdouble percentage;

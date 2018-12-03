@@ -28,6 +28,7 @@
 #include <libintl.h>
 
 #include <dbus/dbus.h>
+#include <upower.h>
 
 #include <profiled/libprofile.h>
 #include <canberra.h>
@@ -517,17 +518,17 @@ on_property_changed(BatteryData *data, void *user_data)
 
   switch(data->state)
   {
-    case UPOWER_STATE_UNKNOWN:
-    case UPOWER_STATE_DISCHARGING:
-    case UPOWER_STATE_EMPTY:
-    case UPOWER_STATE_PENDING_CHARGE: /* Unsure about this one */
+    case UP_DEVICE_STATE_UNKNOWN:
+    case UP_DEVICE_STATE_DISCHARGING:
+    case UP_DEVICE_STATE_EMPTY:
+    case UP_DEVICE_STATE_PENDING_CHARGE: /* Unsure about this one */
       plugin->priv->is_discharging = TRUE;
       plugin->priv->is_charging = FALSE;
       plugin->priv->charger_connected = FALSE;
       plugin->priv->active_time = data->time_to_empty;
       break;
 
-    case UPOWER_STATE_PENDING_DISCHARGE:
+    case UP_DEVICE_STATE_PENDING_DISCHARGE:
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = FALSE;
       plugin->priv->charger_connected = TRUE;
@@ -536,14 +537,14 @@ on_property_changed(BatteryData *data, void *user_data)
 
     /* Similar to pending discharge, but I think this might change in
      * the future */
-    case UPOWER_STATE_FULLY_CHARGED:
+    case UP_DEVICE_STATE_FULLY_CHARGED:
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = FALSE;
       plugin->priv->charger_connected = TRUE;
       plugin->priv->active_time = 0;
       break;
 
-    case UPOWER_STATE_CHARGING:
+    case UP_DEVICE_STATE_CHARGING:
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = TRUE;
       plugin->priv->charger_connected = TRUE;

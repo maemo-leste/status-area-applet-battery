@@ -14,6 +14,7 @@ Build-Depends:
  libdbus-1-dev,
  libdbus-glib-1-dev,
  libglib2.0-dev,
+ libupower-glib-dev
 Standards-Version: 3.7.3
 
 Package: status-area-applet-battery

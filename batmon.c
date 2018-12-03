@@ -24,8 +24,15 @@
 #include <stdio.h>
 
 #include <gio/gio.h>
+#include <upower.h>
 
 #include "batmon.h"
+
+#define UPOWER_BUS_NAME "org.freedesktop.UPower"
+#define UPOWER_PATH_NAME "/org/freedesktop/UPower"
+#define UPOWER_INTERFACE_NAME "org.freedesktop.UPower"
+#define UPOWER_DEVICE_INTERFACE_NAME "org.freedesktop.UPower.Device"
+#define DBUS_PROPERTIES_INTERFACE_NAME "org.freedesktop.DBus.Properties"
 
 /*
  * TODO:
@@ -116,9 +123,9 @@ get_device(GVariant *device_properties)
 static gboolean
 want_device(UPowerDevice *dev)
 {
-  return (dev->type == UPOWER_TYPE_BATTERY) &&
+  return (dev->type == UP_DEVICE_KIND_BATTERY) &&
     /* Check for sensible technology value to rule out non-batteries */
-    (dev->technology != UPOWER_TECHNOLOGY_UNKNOWN);
+    (dev->technology != UP_DEVICE_TECHNOLOGY_UNKNOWN);
 }
 
 static UPowerDevice *

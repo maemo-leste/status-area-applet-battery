@@ -1,4 +1,4 @@
-LIBS=hildon-1 libcanberra profile libhildondesktop-1 dbus-1 gconf-2.0
+LIBS=hildon-1 libcanberra profile libhildondesktop-1 dbus-1 gconf-2.0 upower-glib
 CFLAGS=-c `pkg-config --cflags $(LIBS)`
 LDFLAGS=`pkg-config --libs $(LIBS)`
 CFLAGS+=-Wall -Werror -O2 -fpic
@@ -9,10 +9,10 @@ all: status-area-applet-battery.so
 status-area-applet-battery.so: status-area-applet-battery.o batmon.o
 	$(CC) $(LDFLAGS) $^ -o $@
 
-status-area-applet-battery.o: status-area-applet-battery.c batmon.h upower-defs.h
+status-area-applet-battery.o: status-area-applet-battery.c batmon.h
 	$(CC) $(CFLAGS) $< -o $@
 
-batmon.o: batmon.c batmon.h upower-defs.h
+batmon.o: batmon.c batmon.h
 	$(CC) $(CFLAGS) $< -o $@
 
 install:
