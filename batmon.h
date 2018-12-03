@@ -27,24 +27,24 @@
 
 /* upower data */
 typedef struct {
-    gdouble percentage;
-    gdouble voltage;
-    gdouble temperature;
+  gdouble percentage;
+  gdouble voltage;
+  gdouble temperature;
 
-    guint32 technology;
-    guint32 state;
+  guint32 technology;
+  guint32 state;
 
-    gint64 time_to_full;
-    gint64 time_to_empty;
+  gint64 time_to_full;
+  gint64 time_to_empty;
 
-    gdouble energy_now;
-    gdouble energy_empty;
-    gdouble energy_full;
-    gdouble energy_rate;
+  gdouble energy_now;
+  gdouble energy_empty;
+  gdouble energy_full;
+  gdouble energy_rate;
 
-    guint64 update_time;
+  guint64 update_time;
 
-    gboolean calibrated; /* TODO set this */
+  gboolean calibrated; /* TODO set this */
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData*, void*);
