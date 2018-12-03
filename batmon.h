@@ -24,26 +24,37 @@
 
 #include <glib.h>
 
-/* upower data */
 typedef struct {
+  /* The percentage charge of the device */
   gdouble percentage;
+  /* The current voltage of the device */
   gdouble voltage;
+  /* The temperature of the device in degrees Celsius */
   gdouble temperature;
 
-  guint32 technology;
-  guint32 state;
+  /* The battery technology e.g. UP_DEVICE_TECHNOLOGY_LITHIUM_ION */
+  guint   technology;
+  /* The state the device is in at this time, e.g. UP_DEVICE_STATE_EMPTY */
+  guint   state;
 
-  gint64 time_to_full;
-  gint64 time_to_empty;
+  /* The amount of time until the device is empty */
+  gint64  time_to_empty;
+  /* The amount of time until the device is fully charged */
+  gint64  time_to_full;
 
+  /* Energy left, mWh */
   gdouble energy_now;
+  /* The energy the device will have when it is empty. This is usually zero. */
   gdouble energy_empty;
+  /* The amount of energy when the device is fully charged */
   gdouble energy_full;
+  /* The rate of discharge or charge */
   gdouble energy_rate;
 
+  /* The last time the device was updated */
   guint64 update_time;
 
-  /* TODO: set this */
+  /* Is battery calibrated? */
   gboolean calibrated;
 } BatteryData;
 
