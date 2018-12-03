@@ -36,18 +36,18 @@
 
 /* Only contains values we care about */
 typedef struct {
-  guint32 type;
-  guint32 technology;
-  gchar* upower_path;
+  guint32  type;
+  guint32  technology;
+  gchar   *upower_path;
 } UPowerDevice;
 
 /* Private data */
 typedef struct {
-  UPowerDevice *dev;
-  GDBusProxy *proxy;
-  BatteryData data;
+  UPowerDevice    *dev;
+  GDBusProxy      *proxy;
+  BatteryData      data;
   BatteryCallback *cb;
-  void* user_data;
+  void            *user_data;
 } PrivData;
 
 
