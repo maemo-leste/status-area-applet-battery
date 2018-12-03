@@ -801,7 +801,7 @@ battery_status_plugin_finalize(GObject *object)
     plugin->priv->gconf = NULL;
   }
 
-  free_bat();
+  free_batt();
 
   if (plugin->priv->dbus_conn)
   {
