@@ -92,7 +92,8 @@ get_device_properties(GDBusConnection* bus, gchar* device)
             NULL,
             &error);
 
-  if (error) {
+  if (error)
+  {
     fprintf(stderr, "Unable to get properties: %s\n", error->message);
     g_error_free(error);
     g_variant_unref(res);
@@ -153,7 +154,8 @@ find_battery_device(GDBusConnection* bus)
                                     NULL,
                                     &error);
 
-  if (res == NULL) {
+  if (res == NULL)
+  {
     fprintf(stderr, "Cannot enumerate devices: %s\n", error->message);
     g_error_free(error);
     return NULL;
@@ -164,7 +166,8 @@ find_battery_device(GDBusConnection* bus)
   GVariant* props;
 
   iter = g_variant_iter_new(tmp);
-  for (unsigned int i = 0; i < g_variant_iter_n_children(iter); i++) {
+  for (unsigned int i = 0;  i < g_variant_iter_n_children(iter);  i++)
+  {
     GVariant* val;
     val = g_variant_iter_next_value(iter);
 
@@ -172,11 +175,13 @@ find_battery_device(GDBusConnection* bus)
     g_variant_get(val, "o", &device_path);
 
     props = get_device_properties(bus, device_path);
-    if (props) {
+    if (props)
+    {
       UPowerDevice *dev = get_device(props);
       /*print_props(props);*/
 
-      if (want_device(dev)) {
+      if (want_device(dev))
+      {
         result = dev;
         result->upower_path = strdup(device_path);
       } else {
@@ -251,9 +256,8 @@ on_properties_changed(GDBusProxy *proxy,
     GVariant *value;
 
     g_variant_get(changed_properties, "a{sv}", &iter);
-    while (g_variant_iter_loop(iter, "{&sv}", &key, &value)) {
+    while (g_variant_iter_loop(iter, "{&sv}", &key, &value))
       update_property(key, value);
-    }
     g_variant_iter_free(iter);
   }
 
@@ -269,7 +273,8 @@ get_initial_properties_from_proxy(GDBusProxy *proxy)
   guint n;
 
   property_names = g_dbus_proxy_get_cached_property_names(proxy);
-  for (n = 0; property_names != NULL && property_names[n] != NULL; n++) {
+  for (n = 0;  property_names != NULL && property_names[n] != NULL;  n++)
+  {
     const gchar *key = property_names[n];
     GVariant *value;
     value = g_dbus_proxy_get_cached_property(proxy, key);
@@ -292,7 +297,8 @@ monitor_battery(void)
                                                 UPOWER_DEVICE_INTERFACE_NAME,
                                                 NULL, /* GCancellable */
                                                 &error);
-  if (private.proxy == NULL) {
+  if (private.proxy == NULL)
+  {
     fprintf(stderr, "Could not create dbus proxy\n");
     g_error_free(error);
     return 1;
@@ -311,7 +317,8 @@ init_batt(void)
   GError *error = NULL;
 
   bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-  if (bus == NULL) {
+  if (bus == NULL)
+  {
     fprintf(stderr, "Could not get dbus system session bus: %s\n", error->message);
     g_error_free(error);
     return 1;
@@ -319,7 +326,8 @@ init_batt(void)
 
   private.dev = find_battery_device(bus);
 
-  if (private.dev == NULL) {
+  if (private.dev == NULL)
+  {
     fprintf(stderr, "Failed to find device\n");
     return 1;
   }
@@ -327,7 +335,8 @@ init_batt(void)
   /* Zero battery data structure */
   memset(&(private.data), 0, sizeof(BatteryData));
 
-  if (monitor_battery()) {
+  if (monitor_battery())
+  {
     fprintf(stderr, "Failed to monitor events\n");
     return 1;
   }

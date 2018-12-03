@@ -511,7 +511,8 @@ on_property_changed(BatteryData *dat, void* user_data)
 
   bars = (int)(8 *(6.25 + dat->percentage) / 100);
 
-  switch(dat->state) {
+  switch(dat->state)
+  {
     case UPOWER_STATE_UNKNOWN:
     case UPOWER_STATE_DISCHARGING:
     case UPOWER_STATE_EMPTY:
@@ -546,7 +547,8 @@ on_property_changed(BatteryData *dat, void* user_data)
       break;
   }
 
-  if (plugin->priv->bars != bars) {
+  if (plugin->priv->bars != bars)
+  {
     plugin->priv->bars = bars;
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
       battery_status_plugin_update_icon(plugin, 8);
@@ -554,13 +556,11 @@ on_property_changed(BatteryData *dat, void* user_data)
       battery_status_plugin_update_icon(plugin, bars);
   }
 
-  if (plugin->priv->charger_connected != charger_connected) {
+  if (plugin->priv->charger_connected != charger_connected)
     battery_status_plugin_update_charger(plugin);
-  }
 
-  if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging) {
+  if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging)
     battery_status_plugin_update_charging(plugin);
-  }
 
   battery_status_plugin_update_text(plugin);
   battery_status_plugin_update_icon(plugin, bars);
@@ -568,12 +568,12 @@ on_property_changed(BatteryData *dat, void* user_data)
 
   // If the battery is not calibrated, let's not call battery low all the
   // time.
-  if (plugin->priv->current > 0 && plugin->priv->design > 0) {
-    if (plugin->priv->percentage < 10) {
+  if (plugin->priv->current > 0 && plugin->priv->design > 0)
+  {
+    if (plugin->priv->percentage < 10)
       battery_status_plugin_battery_low(plugin);
-    } else if (plugin->priv->percentage < 5) {
+    else if (plugin->priv->percentage < 5)
       battery_status_plugin_battery_empty(plugin);
-    }
   }
 }
 
@@ -618,7 +618,8 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
    * battery, and instead attempt to find one later, when
    * DeviceAdded/DeviceRemoved occurs */
   int bat_err = init_batt();
-  if (bat_err) {
+  if (bat_err)
+  {
     g_warning("Could not initialise batmon");
     return;
   }
