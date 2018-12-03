@@ -47,10 +47,10 @@ typedef struct {
   gboolean calibrated; /* TODO set this */
 } BatteryData;
 
-typedef void BatteryCallback (BatteryData*, void*);
+typedef void BatteryCallback (BatteryData *, void *);
 
 int            init_batt     (void);
-void           set_batt_cb   (BatteryCallback, void*);
+void           set_batt_cb   (BatteryCallback, void *);
 BatteryData   *get_batt_data (void);
 void           free_bat      (void);
 

@@ -61,7 +61,7 @@ alloc_upower_device(void)
 
 
 void
-free_upower_device(UPowerDevice* dev)
+free_upower_device(UPowerDevice *dev)
 {
   if (dev->upower_path)
     g_free(dev->upower_path);
@@ -75,7 +75,7 @@ static PrivData private = { .dev = NULL,
 
 
 GVariant *
-get_device_properties(GDBusConnection* bus, gchar* device)
+get_device_properties(GDBusConnection *bus, gchar *device)
 {
   GVariant *res;
   GError *error = NULL;
@@ -100,7 +100,7 @@ get_device_properties(GDBusConnection* bus, gchar* device)
     return NULL;
   }
 
-  GVariant* tmp;
+  GVariant *tmp;
   g_variant_get(res, "(*)", &tmp);
 
   g_variant_unref(res);
@@ -135,12 +135,12 @@ want_device(UPowerDevice *dev)
 }
 
 UPowerDevice *
-find_battery_device(GDBusConnection* bus)
+find_battery_device(GDBusConnection *bus)
 {
-  GVariantIter* iter;
-  GVariant* res = NULL;
-  GError* error = NULL;
-  UPowerDevice* result = NULL;
+  GVariantIter *iter;
+  GVariant *res = NULL;
+  GError *error = NULL;
+  UPowerDevice *result = NULL;
 
   res = g_dbus_connection_call_sync(bus,
                                     UPOWER_BUS_NAME,
@@ -162,16 +162,16 @@ find_battery_device(GDBusConnection* bus)
   }
 
   /* Is tuple, extract first item (which is a list/tuple) */
-  GVariant* tmp = g_variant_get_child_value(res, 0);
-  GVariant* props;
+  GVariant *tmp = g_variant_get_child_value(res, 0);
+  GVariant *props;
 
   iter = g_variant_iter_new(tmp);
   for (unsigned int i = 0;  i < g_variant_iter_n_children(iter);  i++)
   {
-    GVariant* val;
+    GVariant *val;
     val = g_variant_iter_next_value(iter);
 
-    gchar* device_path;
+    gchar *device_path;
     g_variant_get(val, "o", &device_path);
 
     props = get_device_properties(bus, device_path);
@@ -212,7 +212,7 @@ find_battery_device(GDBusConnection* bus)
   }
 
 int
-update_property(const gchar* name, GVariant* value)
+update_property(const gchar *name, GVariant *value)
 {
   _UPDATE_BATT_DATA("Percentage", &private.data.percentage, "d");
   _UPDATE_BATT_DATA("Voltage", &private.data.voltage, "d");
@@ -242,7 +242,7 @@ update_property(const gchar* name, GVariant* value)
 static void
 on_properties_changed(GDBusProxy *proxy,
                       GVariant *changed_properties,
-                      const gchar* const *invalidated_properties,
+                      const gchar *const *invalidated_properties,
                       gpointer user_data)
 {
   (void)proxy;
@@ -347,7 +347,7 @@ init_batt(void)
 }
 
 void
-set_batt_cb(BatteryCallback *cb, void* user_data)
+set_batt_cb(BatteryCallback *cb, void *user_data)
 {
   private.cb = cb;
   private.user_data = user_data;

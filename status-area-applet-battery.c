@@ -490,9 +490,9 @@ battery_status_plugin_gconf_notify(GConfClient *client G_GNUC_UNUSED,
 }
 
 static void
-on_property_changed(BatteryData *dat, void* user_data)
+on_property_changed(BatteryData *dat, void *user_data)
 {
-  BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem*)user_data;
+  BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem *)user_data;
 
   int bars;
 
