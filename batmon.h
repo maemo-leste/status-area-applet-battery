@@ -56,6 +56,9 @@ typedef struct {
 
   /* Is battery calibrated? */
   gboolean calibrated;
+  /* Should we try to measure charge using voltage as fallback,
+   * if battery is not calibrated? */
+  gboolean fallback;
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData *, void *);

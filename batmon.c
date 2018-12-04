@@ -66,6 +66,9 @@ want_device(UpDevice *dev)
   {
     /* We blacklist bq27200-0 for now as it gives some weird stuff */
     result = g_strcmp0(native_path, "bq27200-0") != 0;
+
+    if (result)
+      private.battery.fallback = g_strcmp0(native_path, "rx51-battery") == 0;
   }
 
   g_free(native_path);
@@ -98,6 +101,21 @@ find_battery_device()
   return result;
 }
 
+/* Measure charge level using voltage if battery is not calibrated */
+static void
+update_percentage_fallback(void)
+{
+  BatteryData *battery = &private.battery;
+  gdouble voltage = battery->voltage;
+
+  if (battery->state == UP_DEVICE_STATE_CHARGING)
+  {
+    battery->percentage = (voltage - 3.40) * 125;
+  }
+  else
+    battery->percentage = (voltage - 3.25) * 105;
+}
+
 static void
 prop_changed_cb(UpDevice *device,
                 GParamSpec *pspec,
@@ -109,7 +127,12 @@ prop_changed_cb(UpDevice *device,
   if (!g_strcmp0(name, "update-time"))
     g_object_get(private.dev, name, &battery->update_time,   NULL);
   else if (!g_strcmp0(name, "voltage"))
+  {
     g_object_get(private.dev, name, &battery->voltage,       NULL);
+
+    if (!battery->calibrated && battery->fallback)
+      update_percentage_fallback();
+  }
   else if (!g_strcmp0(name, "percentage"))
     g_object_get(private.dev, name, &battery->percentage,    NULL);
   else if (!g_strcmp0(name, "temperature"))
@@ -154,6 +177,8 @@ get_battery_properties(void)
                "energy-rate"  , &battery->energy_rate,
                "update-time"  , &battery->update_time,
                NULL);
+
+  battery->calibrated = battery->percentage ? TRUE : FALSE;
 }
 
 static int

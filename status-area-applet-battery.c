@@ -288,7 +288,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   }
   else
   {
-    ptr += g_snprintf(ptr, limit - ptr, "No data or battery is not calibrated");
+    ptr += g_snprintf(ptr, limit - ptr, "Battery is not calibrated");
   }
 
   gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
