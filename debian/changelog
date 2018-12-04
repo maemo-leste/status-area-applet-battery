@@ -1,3 +1,12 @@
+status-area-applet-battery (1.2-1) unstable; urgency=medium
+
+  * Use libupower-glib API
+  * Blacklist currently broken n900 battery device bq27200-0
+  * Fallback to voltage measurement if battery is not calibrated
+    (for N900 only)
+
+ -- Arthur D. <spinal.by@gmail.com>  Tue, 04 Dec 2018 06:41:44 +0300
+
 status-area-applet-battery (1.1.4-1) unstable; urgency=medium
 
   * Silence battery low notifications on uncalibrated battery
