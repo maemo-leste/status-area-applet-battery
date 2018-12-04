@@ -64,7 +64,8 @@ want_device(UpDevice *dev)
   if (kind == UP_DEVICE_KIND_BATTERY &&
       technology != UP_DEVICE_TECHNOLOGY_UNKNOWN)
   {
-    result = TRUE;
+    /* We blacklist bq27200-0 for now as it gives some weird stuff */
+    result = g_strcmp0(native_path, "bq27200-0") != 0;
   }
 
   g_free(native_path);
