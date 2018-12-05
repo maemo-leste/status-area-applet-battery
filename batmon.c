@@ -43,6 +43,8 @@ static struct {
   UpDevice        *battery;
   BatteryData      data;
   BatteryCallback *cb;
+  gboolean         calibrated;
+  gboolean         fallback;
   void            *user_data;
 } private = {0};
 
@@ -127,7 +129,7 @@ battery_prop_changed_cb(UpDevice *battery,
   {
     g_object_get(battery, name, &data->voltage,       NULL);
 
-    if (data->fallback)
+    if (private.fallback)
       update_percentage_fallback();
   }
   else if (!g_strcmp0(name, "percentage"))
@@ -175,12 +177,12 @@ get_battery_properties(void)
                "update-time"  , &data->update_time,
                NULL);
 
-  data->calibrated = data->percentage ? TRUE : FALSE;
+  private.calibrated = data->percentage ? TRUE : FALSE;
 
-  if (data->calibrated == FALSE &&
+  if (private.calibrated == FALSE &&
       data->voltage > 2.9 && data->voltage < 4.25)
   {
-    data->fallback = TRUE;
+    private.fallback = TRUE;
   }
 }
 
