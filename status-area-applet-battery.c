@@ -535,11 +535,9 @@ on_property_changed(BatteryData *data, void *user_data)
       plugin->priv->active_time = 0;
       break;
 
-    /* Similar to pending discharge, but I think this might change in
-     * the future */
     case UP_DEVICE_STATE_FULLY_CHARGED:
-      plugin->priv->is_discharging = FALSE;
-      plugin->priv->is_charging = FALSE;
+      plugin->priv->is_discharging = TRUE;
+      plugin->priv->is_charging = TRUE;
       plugin->priv->active_time = 0;
       break;
 
