@@ -40,8 +40,8 @@
 /* Private data */
 static struct {
   UpClient        *client;
-  UpDevice        *dev;
-  BatteryData      battery;
+  UpDevice        *battery;
+  BatteryData      data;
   BatteryCallback *cb;
   void            *user_data;
 } private = {0};
@@ -68,7 +68,7 @@ want_device(UpDevice *dev)
     result = g_strcmp0(native_path, "bq27200-0") != 0;
 
     if (result)
-      private.battery.fallback = g_strcmp0(native_path, "rx51-battery") == 0;
+      private.data.fallback = g_strcmp0(native_path, "rx51-battery") == 0;
   }
 
   g_free(native_path);
@@ -105,15 +105,15 @@ find_battery_device()
 static void
 update_percentage_fallback(void)
 {
-  BatteryData *battery = &private.battery;
-  gdouble voltage = battery->voltage;
+  BatteryData *data = &private.data;
+  gdouble voltage = data->voltage;
 
-  if (battery->state == UP_DEVICE_STATE_CHARGING)
+  if (data->state == UP_DEVICE_STATE_CHARGING)
   {
-    battery->percentage = (voltage - 3.40) * 125;
+    data->percentage = (voltage - 3.40) * 125;
   }
   else
-    battery->percentage = (voltage - 3.25) * 105;
+    data->percentage = (voltage - 3.25) * 105;
 }
 
 static void
@@ -121,70 +121,70 @@ prop_changed_cb(UpDevice *device,
                 GParamSpec *pspec,
                 gpointer user_data)
 {
-  BatteryData *battery = &private.battery;
+  BatteryData *data = &private.data;
   const gchar *name    = pspec->name;
 
   if (!g_strcmp0(name, "update-time"))
-    g_object_get(private.dev, name, &battery->update_time,   NULL);
+    g_object_get(private.battery, name, &data->update_time,   NULL);
   else if (!g_strcmp0(name, "voltage"))
   {
-    g_object_get(private.dev, name, &battery->voltage,       NULL);
+    g_object_get(private.battery, name, &data->voltage,       NULL);
 
-    if (!battery->calibrated && battery->fallback)
+    if (!data->calibrated && data->fallback)
       update_percentage_fallback();
   }
   else if (!g_strcmp0(name, "percentage"))
-    g_object_get(private.dev, name, &battery->percentage,    NULL);
+    g_object_get(private.battery, name, &data->percentage,    NULL);
   else if (!g_strcmp0(name, "temperature"))
-    g_object_get(private.dev, name, &battery->temperature,   NULL);
+    g_object_get(private.battery, name, &data->temperature,   NULL);
   else if (!g_strcmp0(name, "time-to-empty"))
-    g_object_get(private.dev, name, &battery->time_to_empty, NULL);
+    g_object_get(private.battery, name, &data->time_to_empty, NULL);
   else if (!g_strcmp0(name, "time-to-full"))
-    g_object_get(private.dev, name, &battery->time_to_full,  NULL);
+    g_object_get(private.battery, name, &data->time_to_full,  NULL);
   else if (!g_strcmp0(name, "energy-rate"))
-    g_object_get(private.dev, name, &battery->energy_rate,   NULL);
+    g_object_get(private.battery, name, &data->energy_rate,   NULL);
   else if (!g_strcmp0(name, "energy"))
-    g_object_get(private.dev, name, &battery->energy_now,    NULL);
+    g_object_get(private.battery, name, &data->energy_now,    NULL);
   else if (!g_strcmp0(name, "energy-empty"))
-    g_object_get(private.dev, name, &battery->energy_empty,  NULL);
+    g_object_get(private.battery, name, &data->energy_empty,  NULL);
   else if (!g_strcmp0(name, "energy-full"))
-    g_object_get(private.dev, name, &battery->energy_full,   NULL);
+    g_object_get(private.battery, name, &data->energy_full,   NULL);
   else if (!g_strcmp0(name, "state"))
-    g_object_get(private.dev, name, &battery->state,         NULL);
+    g_object_get(private.battery, name, &data->state,         NULL);
   else
     return;
 
   if (private.cb)
-    private.cb(&private.battery, private.user_data);
+    private.cb(&private.data, private.user_data);
 }
 
 static void
 get_battery_properties(void)
 {
-  BatteryData *battery = &private.battery;
+  BatteryData *data = &private.data;
 
-  g_object_get(private.dev,
-               "percentage"   , &battery->percentage,
-               "voltage"      , &battery->voltage,
-               "temperature"  , &battery->temperature,
-               "technology"   , &battery->technology,
-               "state"        , &battery->state,
-               "time-to-empty", &battery->time_to_empty,
-               "time-to-full" , &battery->time_to_full,
-               "energy"       , &battery->energy_now,
-               "energy-empty" , &battery->energy_empty,
-               "energy-full"  , &battery->energy_full,
-               "energy-rate"  , &battery->energy_rate,
-               "update-time"  , &battery->update_time,
+  g_object_get(private.battery,
+               "percentage"   , &data->percentage,
+               "voltage"      , &data->voltage,
+               "temperature"  , &data->temperature,
+               "technology"   , &data->technology,
+               "state"        , &data->state,
+               "time-to-empty", &data->time_to_empty,
+               "time-to-full" , &data->time_to_full,
+               "energy"       , &data->energy_now,
+               "energy-empty" , &data->energy_empty,
+               "energy-full"  , &data->energy_full,
+               "energy-rate"  , &data->energy_rate,
+               "update-time"  , &data->update_time,
                NULL);
 
-  battery->calibrated = battery->percentage ? TRUE : FALSE;
+  data->calibrated = data->percentage ? TRUE : FALSE;
 }
 
 static int
 monitor_battery(void)
 {
-  gulong rv = g_signal_connect(private.dev, "notify",
+  gulong rv = g_signal_connect(private.battery, "notify",
                                G_CALLBACK (prop_changed_cb),
                                NULL);
 
@@ -204,9 +204,9 @@ init_batt(void)
     goto fail;
   }
 
-  private.dev = find_battery_device();
+  private.battery = find_battery_device();
 
-  if (private.dev == NULL)
+  if (private.battery == NULL)
   {
     fprintf(stderr, "Failed to find battery\n");
     goto fail;
@@ -237,7 +237,7 @@ set_batt_cb(BatteryCallback *cb, void *user_data)
 BatteryData *
 get_batt_data(void)
 {
-  return &private.battery;
+  return &private.data;
 }
 
 void
