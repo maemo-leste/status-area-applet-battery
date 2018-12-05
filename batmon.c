@@ -66,9 +66,6 @@ want_device(UpDevice *dev)
   {
     /* We blacklist bq27200-0 for now as it gives some weird stuff */
     result = g_strcmp0(native_path, "bq27200-0") != 0;
-
-    if (result)
-      private.data.fallback = g_strcmp0(native_path, "rx51-battery") == 0;
   }
 
   g_free(native_path);
@@ -130,7 +127,7 @@ battery_prop_changed_cb(UpDevice *battery,
   {
     g_object_get(battery, name, &data->voltage,       NULL);
 
-    if (!data->calibrated && data->fallback)
+    if (data->fallback)
       update_percentage_fallback();
   }
   else if (!g_strcmp0(name, "percentage"))
@@ -179,6 +176,12 @@ get_battery_properties(void)
                NULL);
 
   data->calibrated = data->percentage ? TRUE : FALSE;
+
+  if (data->calibrated == FALSE &&
+      data->voltage > 2.9 && data->voltage < 4.25)
+  {
+    data->fallback = TRUE;
+  }
 }
 
 static int
