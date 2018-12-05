@@ -245,6 +245,12 @@ get_batt_data(void)
   return &private.data;
 }
 
+gboolean
+batt_calibrated(void)
+{
+  return private.calibrated;
+}
+
 void
 free_batt(void)
 {
