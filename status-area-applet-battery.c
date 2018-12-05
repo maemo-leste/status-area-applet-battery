@@ -506,6 +506,8 @@ on_property_changed(BatteryData *data, void *user_data)
   gboolean is_discharging = plugin->priv->is_discharging;
   gboolean charger_connected = plugin->priv->charger_connected;
 
+  plugin->priv->charger_connected = data->charger_online;
+
   /* FIXME: This will make current and design vary over time since voltage
    * is not constant(!) but rather the current voltage.
    * The values are provided in /sys, but UPower does not pass them to us. */
@@ -524,14 +526,12 @@ on_property_changed(BatteryData *data, void *user_data)
     case UP_DEVICE_STATE_PENDING_CHARGE: /* Unsure about this one */
       plugin->priv->is_discharging = TRUE;
       plugin->priv->is_charging = FALSE;
-      plugin->priv->charger_connected = FALSE;
       plugin->priv->active_time = data->time_to_empty;
       break;
 
     case UP_DEVICE_STATE_PENDING_DISCHARGE:
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = FALSE;
-      plugin->priv->charger_connected = TRUE;
       plugin->priv->active_time = 0;
       break;
 
@@ -540,14 +540,12 @@ on_property_changed(BatteryData *data, void *user_data)
     case UP_DEVICE_STATE_FULLY_CHARGED:
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = FALSE;
-      plugin->priv->charger_connected = TRUE;
       plugin->priv->active_time = 0;
       break;
 
     case UP_DEVICE_STATE_CHARGING:
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = TRUE;
-      plugin->priv->charger_connected = TRUE;
       plugin->priv->active_time = data->time_to_full;
       break;
   }

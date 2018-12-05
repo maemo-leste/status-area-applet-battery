@@ -34,6 +34,8 @@ typedef struct {
 
   /* The battery technology e.g. UP_DEVICE_TECHNOLOGY_LITHIUM_ION */
   guint   technology;
+  /* Is charging device connected to AC? */
+  gboolean charger_online;
   /* The state the device is in at this time, e.g. UP_DEVICE_STATE_EMPTY */
   guint   state;
 

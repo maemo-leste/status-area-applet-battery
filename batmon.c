@@ -41,6 +41,7 @@
 static struct {
   UpClient        *client;
   UpDevice        *battery;
+  UpDevice        *charger;
   BatteryData      data;
   BatteryCallback *cb;
   gboolean         calibrated;
@@ -49,37 +50,40 @@ static struct {
 } private = {0};
 
 
-static gboolean
-want_device(UpDevice *dev)
+/* If there're multiple batteries/chargers, we take the first suggested */
+static void
+check_device(UpDevice *dev)
 {
-  gchar   *native_path;
   guint    kind;
   guint    technology;
-  gboolean result = FALSE;
 
   g_object_get(dev,
-               "native-path", &native_path,
                "kind"       , &kind,
                "technology" , &technology,
                NULL);
 
-  if (kind == UP_DEVICE_KIND_BATTERY &&
-      technology != UP_DEVICE_TECHNOLOGY_UNKNOWN)
+  if (kind == UP_DEVICE_KIND_BATTERY)
   {
-    /* We blacklist bq27200-0 for now as it gives some weird stuff */
-    result = g_strcmp0(native_path, "bq27200-0") != 0;
+    if (private.battery == NULL &&
+        technology != UP_DEVICE_TECHNOLOGY_UNKNOWN)
+    {
+      private.battery = dev;
+    }
+
+    return;
   }
 
-  g_free(native_path);
-
-  return result;
+  if (kind == UP_DEVICE_KIND_LINE_POWER &&
+      private.charger == NULL)
+  {
+    private.charger = dev;
+  }
 }
 
-/* Return appropriate battery device or NULL */
-static UpDevice *
-find_battery_device()
+/* Find battery/charger devices and add them to private */
+static void
+find_upower_devices()
 {
-  UpDevice  *result = NULL;
   GPtrArray *devices;
   guint      i;
 
@@ -88,16 +92,13 @@ find_battery_device()
   for (i = 0;  i < devices->len;  i++) {
     UpDevice *device = g_ptr_array_index(devices, i);
 
-    if (want_device(device))
-    {
-      result = device;
+    check_device(device);
+
+    if (private.battery && private.charger)
       break;
-    }
   }
 
   g_ptr_array_unref (devices);
-
-  return result;
 }
 
 /* Measure charge level using voltage if battery is not calibrated */
@@ -107,7 +108,13 @@ update_percentage_fallback(void)
   BatteryData *data = &private.data;
   gdouble voltage = data->voltage;
 
-  if (data->state == UP_DEVICE_STATE_CHARGING)
+  if (data->state == UP_DEVICE_STATE_FULLY_CHARGED)
+  {
+    data->percentage = 100;
+    return;
+  }
+
+  if (data->charger_online)
   {
     data->percentage = (voltage - 3.40) * 125;
   }
@@ -149,9 +156,36 @@ battery_prop_changed_cb(UpDevice *battery,
   else if (!g_strcmp0(name, "energy-full"))
     g_object_get(battery, name, &data->energy_full,   NULL);
   else if (!g_strcmp0(name, "state"))
+  {
     g_object_get(battery, name, &data->state,         NULL);
+
+    if (private.charger == NULL)
+    {
+      data->charger_online = data->state == UP_DEVICE_STATE_CHARGING ||
+                             data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
+                             data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
+    }
+  }
   else
     return;
+
+  if (private.cb)
+    private.cb(data, private.user_data);
+}
+
+static void
+charger_prop_changed_cb(UpDevice *charger,
+                        GParamSpec *pspec,
+                        gpointer user_data)
+{
+  BatteryData *data = &private.data;
+
+  g_object_get(charger, "online", &data->charger_online, NULL);
+
+  if (data->charger_online)
+    data->state = UP_DEVICE_STATE_CHARGING;
+  else
+    data->state = UP_DEVICE_STATE_DISCHARGING;
 
   if (private.cb)
     private.cb(data, private.user_data);
@@ -184,6 +218,24 @@ get_battery_properties(void)
   {
     private.fallback = TRUE;
   }
+
+
+  if (private.charger)
+  {
+    g_object_get(private.charger, "online", &data->charger_online, NULL);
+
+    if (data->charger_online)
+      data->state = UP_DEVICE_STATE_CHARGING;
+    else
+      data->state = UP_DEVICE_STATE_DISCHARGING;
+  }
+  else
+  {
+    /* Guess charging state using battery device state */
+    data->charger_online = data->state == UP_DEVICE_STATE_CHARGING ||
+                           data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
+                           data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
+  }
 }
 
 static int
@@ -192,6 +244,13 @@ monitor_battery(void)
   gulong rv = g_signal_connect(private.battery, "notify",
                                G_CALLBACK(battery_prop_changed_cb),
                                NULL);
+
+  if (private.charger)
+  {
+    g_signal_connect(private.charger, "notify::online",
+                     G_CALLBACK(charger_prop_changed_cb),
+                     NULL);
+  }
 
   return rv ? 0 : 1;
 }
@@ -209,7 +268,7 @@ init_batt(void)
     goto fail;
   }
 
-  private.battery = find_battery_device();
+  find_upower_devices();
 
   if (private.battery == NULL)
   {
