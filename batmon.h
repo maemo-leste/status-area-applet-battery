@@ -60,6 +60,7 @@ typedef void BatteryCallback (BatteryData *, void *);
 int            init_batt       (void);
 void           set_batt_cb     (BatteryCallback, void *);
 BatteryData   *get_batt_data   (void);
+gboolean       batt_calibrated (void);
 void           free_batt       (void);
 
 #endif /* _BATMON_H_ */

@@ -288,7 +288,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   }
   else
   {
-    ptr += g_snprintf(ptr, limit - ptr, "Battery is not calibrated");
+    ptr += g_snprintf(ptr, limit - ptr, batt_calibrated() ? "No data" : "Battery is not calibrated");
   }
 
   gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
@@ -572,7 +572,7 @@ on_property_changed(BatteryData *data, void *user_data)
 
 
   /* If the battery is not calibrated, let's not call battery low all the time. */
-  if (plugin->priv->current > 0 && plugin->priv->design > 0)
+  if (batt_calibrated())
   {
     if (plugin->priv->percentage < 10)
       battery_status_plugin_battery_low(plugin);
