@@ -53,19 +53,13 @@ typedef struct {
 
   /* The last time the device was updated */
   guint64 update_time;
-
-  /* Is battery calibrated? */
-  gboolean calibrated;
-  /* Should we try to measure charge using voltage as fallback,
-   * if battery is not calibrated? */
-  gboolean fallback;
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData *, void *);
 
-int            init_batt     (void);
-void           set_batt_cb   (BatteryCallback, void *);
-BatteryData   *get_batt_data (void);
-void           free_batt     (void);
+int            init_batt       (void);
+void           set_batt_cb     (BatteryCallback, void *);
+BatteryData   *get_batt_data   (void);
+void           free_batt       (void);
 
 #endif /* _BATMON_H_ */
