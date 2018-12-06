@@ -253,6 +253,27 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   limit  = &text[sizeof(text)];
   ptr[0] = '\0';
 
+  if (!batt_calibrated())
+  {
+    const char* batt_status = NULL;
+
+    g_snprintf(text, sizeof(text), "%s", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
+    gtk_label_set_text(GTK_LABEL(plugin->priv->title), text);
+
+    text[0] = '\0';
+    if (plugin->priv->is_charging && plugin->priv->is_discharging)
+      batt_status = "incf_me_battery_charged";
+    else if (plugin->priv->is_charging)
+      batt_status = "incf_me_battery_charging";
+
+    if (batt_status)
+      g_snprintf(text, sizeof(text), "%s", dgettext("osso-dsm-ui", batt_status));
+
+    gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
+
+    return;
+  }
+
   ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
   if (plugin->priv->is_charging && plugin->priv->is_discharging)
@@ -288,7 +309,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   }
   else
   {
-    ptr += g_snprintf(ptr, limit - ptr, batt_calibrated() ? "No data" : "Battery is not calibrated");
+    ptr += g_snprintf(ptr, limit - ptr, "No data");
   }
 
   gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
