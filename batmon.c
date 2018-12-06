@@ -277,13 +277,13 @@ init_batt(void)
 
   if (private.battery == NULL)
   {
-    fprintf(stderr, "Failed to find battery\n");
+    g_warning("Failed to find battery");
     goto fail;
   }
 
   if (monitor_battery())
   {
-    fprintf(stderr, "Failed to monitor events\n");
+    g_warning("Failed to monitor events");
     goto fail;
   }
 
@@ -328,7 +328,7 @@ free_batt(void)
 static void
 testf(BatteryData *d)
 {
-  fprintf(stderr, "Test callback\n");
+  g_warning("Test callback");
   return;
 }
 
@@ -338,7 +338,7 @@ main_loop(void)
   static GMainLoop *loop = NULL;
 
   if (init_batt()) {
-    fprintf(stderr, "Failed to find device\n");
+    g_warning("Failed to find device");
     return 1;
   }
 
