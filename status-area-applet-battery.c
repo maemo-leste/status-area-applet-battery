@@ -68,6 +68,7 @@ struct _BatteryStatusAreaItemClass {
 };
 
 struct _BatteryStatusAreaItemPrivate {
+  GtkWidget *alignment;
   GtkWidget *title;
   GtkWidget *value;
   GtkWidget *image;
@@ -257,10 +258,6 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   {
     const char* batt_status = NULL;
 
-    g_snprintf(text, sizeof(text), "%s", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
-    gtk_label_set_text(GTK_LABEL(plugin->priv->title), text);
-
-    text[0] = '\0';
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
       batt_status = "incf_me_battery_charged";
     else if (plugin->priv->is_charging)
@@ -473,11 +470,23 @@ static void
 battery_status_plugin_update_charger(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->charger_connected)
+  {
     battery_status_plugin_charger_connected(plugin);
+    if (!batt_calibrated())
+    {
+      gtk_widget_show(plugin->priv->value);
+      gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 0, 0, 0, 0);
+    }
+  }
   else
   {
     battery_status_plugin_charger_disconnected(plugin);
     battery_status_plugin_charging_stop(plugin);
+    if (!batt_calibrated())
+    {
+      gtk_widget_hide(plugin->priv->value);
+      gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 12, 12, 0, 0);
+    }
   }
 }
 
@@ -674,7 +683,7 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   plugin->priv->gconf_notify = gconf_client_notify_add(plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
   plugin->priv->gconf_notify = gconf_client_notify_add(plugin->priv->gconf, GCONF_EXEC_APPLICATION, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
 
-  plugin->priv->title = gtk_label_new(NULL);
+  plugin->priv->title = gtk_label_new(dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
   if (!plugin->priv->title)
   {
     g_warning("Could not create GtkLabel");
@@ -744,25 +753,41 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
     return;
   }
 
+  plugin->priv->alignment = gtk_alignment_new(0, 0.5, 0, 0);
+  if (!plugin->priv->alignment)
+  {
+    g_warning("Could not create GtkAlignment");
+    gtk_widget_destroy(plugin->priv->title);
+    gtk_widget_destroy(plugin->priv->value);
+    gtk_widget_destroy(plugin->priv->image);
+    gtk_widget_destroy(alignment);
+    gtk_widget_destroy(event_box);
+    gtk_widget_destroy(label_box);
+    gtk_widget_destroy(hbox);
+    return;
+  }
+
   gtk_widget_set_name(plugin->priv->title, "hildon-button-title");
   gtk_widget_set_name(plugin->priv->value, "hildon-button-value");
 
   gtk_misc_set_alignment(GTK_MISC(plugin->priv->title), 0, 0.5);
   gtk_misc_set_alignment(GTK_MISC(plugin->priv->value), 0, 0.5);
-  gtk_misc_set_alignment(GTK_MISC(plugin->priv->image), 0.5, 0.5);
 
   style = gtk_rc_get_style_by_paths(gtk_settings_get_default(), "SmallSystemFont", NULL, G_TYPE_NONE);
   if (style && style->font_desc)
     gtk_widget_modify_font(GTK_WIDGET(plugin->priv->value), style->font_desc);
 
-  gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->title, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->value, TRUE, TRUE, 0);
+  gtk_container_add(GTK_CONTAINER(plugin->priv->alignment), plugin->priv->title);
+  gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->alignment, FALSE, FALSE, 0);
+  gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 12, 12, 0, 0);
 
-  gtk_box_pack_start(GTK_BOX(hbox), plugin->priv->image, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(hbox), label_box, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->value, TRUE, TRUE, 0);
+  gtk_widget_set_no_show_all(plugin->priv->value, TRUE);
+
+  gtk_box_pack_start(GTK_BOX(hbox), plugin->priv->image, FALSE, FALSE, 10);
+  gtk_box_pack_end(GTK_BOX(hbox), label_box, TRUE, TRUE, 0);
 
   gtk_container_add(GTK_CONTAINER(alignment), hbox);
-
   gtk_container_add(GTK_CONTAINER(event_box), alignment);
   gtk_widget_set_events(event_box, GDK_BUTTON_PRESS_MASK);
   g_signal_connect_after(G_OBJECT(event_box), "button-press-event", G_CALLBACK(battery_status_plugin_on_button_clicked_cb), plugin);
