@@ -175,9 +175,9 @@ battery_prop_changed_cb(UpDevice *battery,
 }
 
 static void
-charger_prop_changed_cb(UpDevice *charger,
-                        GParamSpec *pspec,
-                        gpointer user_data)
+charger_state_changed_cb(UpDevice *charger,
+                         GParamSpec *pspec,
+                         gpointer user_data)
 {
   BatteryData *data = &private.data;
 
@@ -253,7 +253,7 @@ monitor_battery(void)
   if (private.charger)
   {
     g_signal_connect(private.charger, "notify::online",
-                     G_CALLBACK(charger_prop_changed_cb),
+                     G_CALLBACK(charger_state_changed_cb),
                      NULL);
   }
 
