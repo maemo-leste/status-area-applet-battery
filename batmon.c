@@ -108,9 +108,10 @@ update_percentage_fallback(void)
   BatteryData *data = &private.data;
   gdouble voltage = data->voltage;
 
-  if (data->state == UP_DEVICE_STATE_FULLY_CHARGED)
+  if (data->state == UP_DEVICE_STATE_EMPTY ||
+      data->state == UP_DEVICE_STATE_FULLY_CHARGED)
   {
-    data->percentage = 100;
+    data->percentage = data->state == UP_DEVICE_STATE_EMPTY ? 0 : 100;
     return;
   }
 
@@ -133,12 +134,7 @@ battery_prop_changed_cb(UpDevice *battery,
   if (!g_strcmp0(prop, "update-time"))
     g_object_get(battery, prop, &data->update_time,   NULL);
   else if (!g_strcmp0(prop, "voltage"))
-  {
     g_object_get(battery, prop, &data->voltage,       NULL);
-
-    if (private.fallback)
-      update_percentage_fallback();
-  }
   else if (!g_strcmp0(prop, "percentage"))
     g_object_get(battery, prop, &data->percentage,    NULL);
   else if (!g_strcmp0(prop, "temperature"))
@@ -156,18 +152,48 @@ battery_prop_changed_cb(UpDevice *battery,
   else if (!g_strcmp0(prop, "energy-full"))
     g_object_get(battery, prop, &data->energy_full,   NULL);
   else if (!g_strcmp0(prop, "state"))
-  {
     g_object_get(battery, prop, &data->state,         NULL);
-
-    if (private.charger == NULL)
-    {
-      data->charger_online = data->state == UP_DEVICE_STATE_CHARGING ||
-                             data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
-                             data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
-    }
-  }
   else
     return;
+
+  if (private.cb)
+    private.cb(data, private.user_data);
+}
+
+/* Additional handler for uncalibrated batteries */
+static void
+battery_voltage_changed_cb(UpDevice *battery,
+                           GParamSpec *pspec,
+                           gpointer user_data)
+{
+  g_object_get(battery, "voltage", &private.data.voltage, NULL);
+  update_percentage_fallback();
+
+  if (private.cb)
+    private.cb(&private.data, private.user_data);
+}
+
+static void
+battery_state_changed_cb(UpDevice *battery,
+                         GParamSpec *pspec,
+                         gpointer user_data)
+{
+  BatteryData *data = &private.data;
+  g_object_get(battery, "state", &data->state, NULL);
+
+  if (private.charger == NULL)
+  {
+    data->charger_online = data->state == UP_DEVICE_STATE_CHARGING ||
+                           data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
+                           data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
+  }
+
+  if (private.fallback &&
+      (data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
+       data->state == UP_DEVICE_STATE_EMPTY))
+  {
+    update_percentage_fallback();
+  }
 
   if (private.cb)
     private.cb(data, private.user_data);
@@ -253,6 +279,20 @@ monitor_battery(void)
                      NULL);
   }
 
+  if (private.fallback)
+  {
+    g_signal_connect(private.battery, "notify::voltage",
+                     G_CALLBACK(battery_voltage_changed_cb),
+                     NULL);
+  }
+
+  if (private.charger == NULL || private.fallback)
+  {
+    g_signal_connect(private.battery, "notify::state",
+                     G_CALLBACK(battery_state_changed_cb),
+                     NULL);
+  }
+
   return rv ? 0 : 1;
 }
 
@@ -277,13 +317,13 @@ init_batt(void)
     goto fail;
   }
 
+  get_battery_properties();
+
   if (monitor_battery())
   {
     g_warning("Failed to monitor events");
     goto fail;
   }
-
-  get_battery_properties();
 
   return 0;
 
