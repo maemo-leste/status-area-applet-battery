@@ -217,6 +217,7 @@ get_battery_properties(void)
       data->voltage > 2.9 && data->voltage < 4.25)
   {
     private.fallback = TRUE;
+    update_percentage_fallback();
   }
 
 

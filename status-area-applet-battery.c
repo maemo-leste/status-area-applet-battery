@@ -775,11 +775,8 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   plugin->priv->show_charge_charging = gconf_client_get_bool(plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
   plugin->priv->exec_application = gconf_client_get_string(plugin->priv->gconf, GCONF_EXEC_APPLICATION, NULL);
 
-
+  plugin->priv->bars = -2;
   on_property_changed(get_batt_data(), plugin);
-
-  battery_status_plugin_update_icon(plugin, 0);
-  battery_status_plugin_update_text(plugin);
 
   dbus_bus_add_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
   dbus_connection_add_filter(plugin->priv->dbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
