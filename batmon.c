@@ -128,36 +128,36 @@ battery_prop_changed_cb(UpDevice *battery,
                         gpointer user_data)
 {
   BatteryData *data = &private.data;
-  const gchar *name    = pspec->name;
+  const gchar *prop = pspec->name;
 
-  if (!g_strcmp0(name, "update-time"))
-    g_object_get(battery, name, &data->update_time,   NULL);
-  else if (!g_strcmp0(name, "voltage"))
+  if (!g_strcmp0(prop, "update-time"))
+    g_object_get(battery, prop, &data->update_time,   NULL);
+  else if (!g_strcmp0(prop, "voltage"))
   {
-    g_object_get(battery, name, &data->voltage,       NULL);
+    g_object_get(battery, prop, &data->voltage,       NULL);
 
     if (private.fallback)
       update_percentage_fallback();
   }
-  else if (!g_strcmp0(name, "percentage"))
-    g_object_get(battery, name, &data->percentage,    NULL);
-  else if (!g_strcmp0(name, "temperature"))
-    g_object_get(battery, name, &data->temperature,   NULL);
-  else if (!g_strcmp0(name, "time-to-empty"))
-    g_object_get(battery, name, &data->time_to_empty, NULL);
-  else if (!g_strcmp0(name, "time-to-full"))
-    g_object_get(battery, name, &data->time_to_full,  NULL);
-  else if (!g_strcmp0(name, "energy-rate"))
-    g_object_get(battery, name, &data->energy_rate,   NULL);
-  else if (!g_strcmp0(name, "energy"))
-    g_object_get(battery, name, &data->energy_now,    NULL);
-  else if (!g_strcmp0(name, "energy-empty"))
-    g_object_get(battery, name, &data->energy_empty,  NULL);
-  else if (!g_strcmp0(name, "energy-full"))
-    g_object_get(battery, name, &data->energy_full,   NULL);
-  else if (!g_strcmp0(name, "state"))
+  else if (!g_strcmp0(prop, "percentage"))
+    g_object_get(battery, prop, &data->percentage,    NULL);
+  else if (!g_strcmp0(prop, "temperature"))
+    g_object_get(battery, prop, &data->temperature,   NULL);
+  else if (!g_strcmp0(prop, "time-to-empty"))
+    g_object_get(battery, prop, &data->time_to_empty, NULL);
+  else if (!g_strcmp0(prop, "time-to-full"))
+    g_object_get(battery, prop, &data->time_to_full,  NULL);
+  else if (!g_strcmp0(prop, "energy-rate"))
+    g_object_get(battery, prop, &data->energy_rate,   NULL);
+  else if (!g_strcmp0(prop, "energy"))
+    g_object_get(battery, prop, &data->energy_now,    NULL);
+  else if (!g_strcmp0(prop, "energy-empty"))
+    g_object_get(battery, prop, &data->energy_empty,  NULL);
+  else if (!g_strcmp0(prop, "energy-full"))
+    g_object_get(battery, prop, &data->energy_full,   NULL);
+  else if (!g_strcmp0(prop, "state"))
   {
-    g_object_get(battery, name, &data->state,         NULL);
+    g_object_get(battery, prop, &data->state,         NULL);
 
     if (private.charger == NULL)
     {
