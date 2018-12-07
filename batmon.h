@@ -29,6 +29,8 @@ typedef struct {
   gdouble percentage;
   /* The current voltage of the device */
   gdouble voltage;
+  /* Voltage used to calculate full Ah capacity */
+  gdouble design_voltage;
   /* The temperature of the device in degrees Celsius */
   gdouble temperature;
 
