@@ -349,15 +349,22 @@ battery_status_plugin_charger_disconnected(BatteryStatusAreaItem *plugin)
 }
 
 static void
-battery_status_plugin_animation_start(BatteryStatusAreaItem *plugin)
+battery_status_plugin_animation_start(BatteryStatusAreaItem *plugin, gboolean resume)
 {
   if (plugin->priv->display_is_off || !plugin->priv->is_charging || plugin->priv->is_discharging)
     return;
 
   if (plugin->priv->timer_id == 0)
   {
-    plugin->priv->charging_idx = plugin->priv->bars;
     plugin->priv->timer_id = g_timeout_add_seconds(1, battery_status_plugin_animation, plugin);
+
+    if (resume)
+    {
+      if (plugin->priv->charging_idx != 8)
+        battery_status_plugin_animation(plugin);
+    }
+    else
+      plugin->priv->charging_idx = plugin->priv->bars;
   }
 }
 
@@ -374,7 +381,7 @@ battery_status_plugin_animation_stop(BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_charging_start(BatteryStatusAreaItem *plugin)
 {
-  battery_status_plugin_animation_start(plugin);
+  battery_status_plugin_animation_start(plugin, FALSE);
 }
 
 static void
@@ -426,15 +433,16 @@ battery_status_plugin_dbus_display(DBusConnection *connection,
   if (g_strcmp0(status, "off") == 0)
     display_is_off = TRUE;
 
-  if (display_is_off && !plugin->priv->display_is_off)
-  {
-    plugin->priv->display_is_off = TRUE;
+  if (display_is_off == plugin->priv->display_is_off)
+    return DBUS_HANDLER_RESULT_HANDLED;
+
+  plugin->priv->display_is_off = display_is_off;
+
+  if (display_is_off)
     battery_status_plugin_animation_stop(plugin);
-  }
-  else if (!display_is_off && plugin->priv->display_is_off)
+  else
   {
-    plugin->priv->display_is_off = FALSE;
-    battery_status_plugin_animation_start(plugin);
+    battery_status_plugin_animation_start(plugin, TRUE);
     battery_status_plugin_update_text(plugin);
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
       battery_status_plugin_update_icon(plugin, 8);
