@@ -256,9 +256,11 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
     return;
   }
 
+  /* "Battery" */
   ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
   if (plugin->priv->is_charging && plugin->priv->is_discharging)
+    /* "Fully charged" */
     ptr += g_snprintf(ptr, limit - ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charged"));
   else if (!plugin->priv->is_charging)
     ptr += g_snprintf(ptr, limit - ptr, "%d%%", plugin->priv->percentage);
@@ -266,6 +268,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   {
     if (plugin->priv->percentage != 0)
       ptr += g_snprintf(ptr, limit - ptr, "%d%% ", plugin->priv->percentage);
+    /* "Charging" */
     ptr += g_snprintf(ptr, limit - ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charging"));
   }
 
