@@ -46,6 +46,7 @@ static struct {
   BatteryCallback *cb;
   gboolean         calibrated;
   gboolean         fallback;
+  time_t           force_state;
   void            *user_data;
 } private = {0};
 
@@ -170,8 +171,6 @@ battery_prop_changed_cb(UpDevice *battery,
     g_object_get(battery, prop, &data->energy_empty,  NULL);
   else if (!g_strcmp0(prop, "energy-full"))
     g_object_get(battery, prop, &data->energy_full,   NULL);
-  else if (!g_strcmp0(prop, "state"))
-    g_object_get(battery, prop, &data->state,         NULL);
   else
     return;
 
@@ -206,6 +205,16 @@ battery_state_changed_cb(UpDevice *battery,
                            data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
                            data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
   }
+  else if (time(NULL) < private.force_state)
+  {
+    if (data->charger_online)
+    {
+      if (data->state == UP_DEVICE_STATE_DISCHARGING)
+        data->state = UP_DEVICE_STATE_CHARGING;
+    }
+    else if (data->state == UP_DEVICE_STATE_CHARGING)
+      data->state = UP_DEVICE_STATE_DISCHARGING;
+  }
 
   if (private.fallback &&
       (data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
@@ -227,6 +236,7 @@ charger_state_changed_cb(UpDevice *charger,
 
   g_object_get(charger, "online", &data->charger_online, NULL);
 
+  private.force_state = time(NULL) + 10;
   if (data->charger_online)
     data->state = UP_DEVICE_STATE_CHARGING;
   else
@@ -269,6 +279,7 @@ get_battery_properties(void)
   if (private.charger)
   {
     g_object_get(private.charger, "online", &data->charger_online, NULL);
+    private.force_state = time(NULL) + 10;
 
     if (data->charger_online)
     {
@@ -308,12 +319,9 @@ monitor_battery(void)
                      NULL);
   }
 
-  if (private.charger == NULL || private.fallback)
-  {
-    g_signal_connect(private.battery, "notify::state",
-                     G_CALLBACK(battery_state_changed_cb),
-                     NULL);
-  }
+  g_signal_connect(private.battery, "notify::state",
+                   G_CALLBACK(battery_state_changed_cb),
+                   NULL);
 
   return rv ? 0 : 1;
 }
