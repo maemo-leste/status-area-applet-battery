@@ -137,56 +137,41 @@ battery_status_plugin_play_sound(BatteryStatusAreaItem *plugin,
 static void
 battery_status_plugin_update_icon(BatteryStatusAreaItem *plugin, int id)
 {
-  const char *name;
+  static const char *names[] = {
+    "statusarea_battery_low",
+    "statusarea_battery_full13",
+    "statusarea_battery_full25",
+    "statusarea_battery_full38",
+    "statusarea_battery_full50",
+    "statusarea_battery_full63",
+    "statusarea_battery_full75",
+    "statusarea_battery_full88",
+    "statusarea_battery_full100",
+    "statusarea_battery_verylow"
+  };
+
+  int last;
   GdkPixbuf *pixbuf;
   GtkIconTheme *icon_theme;
 
   if (plugin->priv->display_is_off)
     return;
 
-  switch (id)
-  {
-    case -1:
-      name = "statusarea_battery_verylow";
-      break;
-    case 0:
-      name = "statusarea_battery_low";
-      break;
-    case 1:
-      name = "statusarea_battery_full13";
-      break;
-    case 2:
-      name = "statusarea_battery_full25";
-      break;
-    case 3:
-      name = "statusarea_battery_full38";
-      break;
-    case 4:
-      name = "statusarea_battery_full50";
-      break;
-    case 5:
-      name = "statusarea_battery_full63";
-      break;
-    case 6:
-      name = "statusarea_battery_full75";
-      break;
-    case 7:
-      name = "statusarea_battery_full88";
-      break;
-    case 8:
-      name = "statusarea_battery_full100";
-      break;
-    default:
-      return;
-  }
+  last = sizeof(names) / sizeof(*names) - 1;
+
+  if (id > last)
+    return;
+
+  if (id < 0)
+    id = last;
 
   icon_theme = gtk_icon_theme_get_default();
 
-  pixbuf = gtk_icon_theme_load_icon(icon_theme, name, 18, GTK_ICON_LOOKUP_NO_SVG, NULL);
+  pixbuf = gtk_icon_theme_load_icon(icon_theme, names[id], 18, GTK_ICON_LOOKUP_NO_SVG, NULL);
   hd_status_plugin_item_set_status_area_icon(HD_STATUS_PLUGIN_ITEM(plugin), pixbuf);
   g_object_unref(pixbuf);
 
-  pixbuf = gtk_icon_theme_load_icon(icon_theme, name, 48, GTK_ICON_LOOKUP_NO_SVG, NULL);
+  pixbuf = gtk_icon_theme_load_icon(icon_theme, names[id], 48, GTK_ICON_LOOKUP_NO_SVG, NULL);
   gtk_image_set_from_pixbuf(GTK_IMAGE(plugin->priv->image), pixbuf);
   g_object_unref(pixbuf);
 }
