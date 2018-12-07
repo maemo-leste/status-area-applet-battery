@@ -72,6 +72,7 @@ struct _BatteryStatusAreaItemPrivate {
   GtkWidget *title;
   GtkWidget *value;
   GtkWidget *image;
+  GtkWidget *hbox;
   DBusConnection *dbus_conn;
   ca_context *context;
   ca_proplist *pl;
@@ -526,6 +527,20 @@ battery_status_plugin_update_charging(BatteryStatusAreaItem *plugin)
 }
 
 static void
+battery_status_plugin_update_image_padding(BatteryStatusAreaItem *plugin)
+{
+  guint padding = 0;
+
+  if (!plugin->priv->use_design || !batt_calibrated())
+    padding = 10;
+
+  gtk_box_set_child_packing(GTK_BOX(plugin->priv->hbox),
+                            plugin->priv->image,
+                            FALSE, FALSE, padding,
+                            GTK_PACK_START);
+}
+
+static void
 battery_status_plugin_gconf_notify(GConfClient *client,
                                    guint cnxn_id,
                                    GConfEntry *entry,
@@ -539,6 +554,7 @@ battery_status_plugin_gconf_notify(GConfClient *client,
   {
     plugin->priv->use_design = value ? gconf_value_get_int(value) : 1;
     battery_status_plugin_update_value_visibility(plugin);
+    battery_status_plugin_update_image_padding(plugin);
     battery_status_plugin_update_text(plugin);
   }
   else if (strcmp(key, GCONF_SHOW_CHARGE_CHARGING_KEY) == 0)
@@ -657,7 +673,6 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 {
   DBusError error;
   GtkWidget *alignment;
-  GtkWidget *hbox;
   GtkWidget *label_box;
   GtkWidget *event_box;
   GtkStyle *style;
@@ -760,8 +775,8 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
     return;
   }
 
-  hbox = gtk_hbox_new(FALSE, 0);
-  if (!hbox)
+  plugin->priv->hbox = gtk_hbox_new(FALSE, 0);
+  if (!plugin->priv->hbox)
   {
     g_warning("Could not create GtkHBox");
     gtk_widget_destroy(plugin->priv->title);
@@ -779,9 +794,9 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
     gtk_widget_destroy(plugin->priv->title);
     gtk_widget_destroy(plugin->priv->value);
     gtk_widget_destroy(plugin->priv->image);
+    gtk_widget_destroy(plugin->priv->hbox);
     gtk_widget_destroy(alignment);
     gtk_widget_destroy(event_box);
-    gtk_widget_destroy(hbox);
     return;
   }
 
@@ -792,10 +807,10 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
     gtk_widget_destroy(plugin->priv->title);
     gtk_widget_destroy(plugin->priv->value);
     gtk_widget_destroy(plugin->priv->image);
+    gtk_widget_destroy(plugin->priv->hbox);
     gtk_widget_destroy(alignment);
     gtk_widget_destroy(event_box);
     gtk_widget_destroy(label_box);
-    gtk_widget_destroy(hbox);
     return;
   }
 
@@ -816,10 +831,10 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->value, TRUE, TRUE, 0);
   gtk_widget_set_no_show_all(plugin->priv->value, TRUE);
 
-  gtk_box_pack_start(GTK_BOX(hbox), plugin->priv->image, FALSE, FALSE, 10);
-  gtk_box_pack_end(GTK_BOX(hbox), label_box, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(plugin->priv->hbox), plugin->priv->image, FALSE, FALSE, 0);
+  gtk_box_pack_end(GTK_BOX(plugin->priv->hbox), label_box, TRUE, TRUE, 0);
 
-  gtk_container_add(GTK_CONTAINER(alignment), hbox);
+  gtk_container_add(GTK_CONTAINER(alignment), plugin->priv->hbox);
   gtk_container_add(GTK_CONTAINER(event_box), alignment);
   gtk_widget_set_events(event_box, GDK_BUTTON_PRESS_MASK);
   g_signal_connect_after(G_OBJECT(event_box), "button-press-event", G_CALLBACK(battery_status_plugin_on_button_clicked_cb), plugin);
@@ -834,6 +849,7 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 
   plugin->priv->bars = -2;
   on_property_changed(get_batt_data(), plugin);
+  battery_status_plugin_update_image_padding(plugin);
   battery_status_plugin_update_value_visibility(plugin);
 
   dbus_bus_add_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
