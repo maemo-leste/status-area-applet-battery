@@ -1,3 +1,13 @@
+status-area-applet-battery (1.2-2) unstable; urgency=medium
+
+  * Make plugin look and feel more like Fremantle's original one when
+    use_design_capacity option is off
+  * Add UPower charger device support
+  * Unblacklist bq27200-0
+  * Misc fixes and improvements
+
+ -- Arthur D. <spinal.by@gmail.com>  Fri, 07 Dec 2018 21:50:17 +0300
+
 status-area-applet-battery (1.2-1) unstable; urgency=medium
 
   * Use libupower-glib API
