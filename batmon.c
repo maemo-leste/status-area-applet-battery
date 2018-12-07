@@ -247,6 +247,27 @@ charger_state_changed_cb(UpDevice *charger,
 }
 
 static void
+get_design_voltage(void)
+{
+  BatteryData *data = &private.data;
+  int i;
+
+  if (data->technology == UP_DEVICE_TECHNOLOGY_LITHIUM_ION)
+  {
+    for (i = 1;  i < 4;  i++)
+    {
+      if (2.9 * i < data->voltage && data->voltage < i * 4.3)
+      {
+        data->design_voltage = i * 4.2;
+        return;
+      }
+    }
+  }
+
+  data->design_voltage = data->voltage;
+}
+
+static void
 get_battery_properties(void)
 {
   BatteryData *data = &private.data;
@@ -265,6 +286,8 @@ get_battery_properties(void)
                "energy-rate"  , &data->energy_rate,
                "update-time"  , &data->update_time,
                NULL);
+
+  get_design_voltage();
 
   private.calibrated = data->percentage ? TRUE : FALSE;
 

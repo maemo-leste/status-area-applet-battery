@@ -231,6 +231,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
 {
   gchar text[64];
   gchar *ptr, *limit;
+  gboolean calibrated;
 
   if (plugin->priv->display_is_off)
     return;
@@ -239,9 +240,22 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   limit  = &text[sizeof(text)];
   ptr[0] = '\0';
 
-  if (!batt_calibrated())
+  calibrated = batt_calibrated();
+  if (!calibrated || !plugin->priv->use_design)
   {
     const char* batt_status = NULL;
+
+    if (calibrated)
+    {
+      /* Show "Battery: xx%" if not fully charged */
+      ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
+
+      if (!plugin->priv->is_charging || !plugin->priv->is_discharging)
+        ptr += g_snprintf(ptr, limit - ptr, "%d%%", plugin->priv->percentage);
+
+      gtk_label_set_text(GTK_LABEL(plugin->priv->title), text);
+      text[0] = '\0';
+    }
 
     if (plugin->priv->is_charging && plugin->priv->is_discharging)
       batt_status = "incf_me_battery_charged";
@@ -463,26 +477,42 @@ battery_status_plugin_battery_low(BatteryStatusAreaItem *plugin)
 }
 
 static void
+battery_status_plugin_update_value_visibility(BatteryStatusAreaItem *plugin)
+{
+  static gboolean visible = FALSE;
+  gboolean show = plugin->priv->charger_connected;
+
+  if (plugin->priv->use_design && batt_calibrated())
+    show = TRUE;
+
+  if (visible == show)
+    return;
+
+  if ((visible = show))
+  {
+    gtk_widget_show(plugin->priv->value);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 0, 0, 0, 0);
+  }
+  else
+  {
+    gtk_widget_hide(plugin->priv->value);
+    gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 12, 12, 0, 0);
+  }
+}
+
+static void
 battery_status_plugin_update_charger(BatteryStatusAreaItem *plugin)
 {
   if (plugin->priv->charger_connected)
   {
     battery_status_plugin_charger_connected(plugin);
-    if (!batt_calibrated())
-    {
-      gtk_widget_show(plugin->priv->value);
-      gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 0, 0, 0, 0);
-    }
+    battery_status_plugin_update_value_visibility(plugin);
   }
   else
   {
     battery_status_plugin_charger_disconnected(plugin);
     battery_status_plugin_charging_stop(plugin);
-    if (!batt_calibrated())
-    {
-      gtk_widget_hide(plugin->priv->value);
-      gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 12, 12, 0, 0);
-    }
+    battery_status_plugin_update_value_visibility(plugin);
   }
 }
 
@@ -508,7 +538,8 @@ battery_status_plugin_gconf_notify(GConfClient *client,
   if (strcmp(key, GCONF_USE_DESIGN_KEY) == 0)
   {
     plugin->priv->use_design = value ? gconf_value_get_int(value) : 1;
-    plugin->priv->design = 0;
+    battery_status_plugin_update_value_visibility(plugin);
+    battery_status_plugin_update_text(plugin);
   }
   else if (strcmp(key, GCONF_SHOW_CHARGE_CHARGING_KEY) == 0)
   {
@@ -534,11 +565,16 @@ on_property_changed(BatteryData *data, void *user_data)
 
   plugin->priv->charger_connected = data->charger_online;
 
-  /* FIXME: This will make current and design vary over time since voltage
-   * is not constant(!) but rather the current voltage.
-   * The values are provided in /sys, but UPower does not pass them to us. */
-  plugin->priv->current = (int)(1000 * data->energy_now / data->voltage);
-  plugin->priv->design = (int)(1000 * data->energy_full / data->voltage);
+  if (data->voltage && data->design_voltage)
+  {
+    plugin->priv->current = (int)(1000 * data->energy_now / data->voltage);
+    plugin->priv->design = (int)(1000 * data->energy_full / data->design_voltage);
+  }
+  else
+  {
+    plugin->priv->current = 0;
+    plugin->priv->design = 0;
+  }
 
   plugin->priv->percentage = (int)data->percentage;
 
@@ -798,6 +834,7 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 
   plugin->priv->bars = -2;
   on_property_changed(get_batt_data(), plugin);
+  battery_status_plugin_update_value_visibility(plugin);
 
   dbus_bus_add_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
   dbus_connection_add_filter(plugin->priv->dbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
