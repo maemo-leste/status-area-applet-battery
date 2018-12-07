@@ -107,6 +107,7 @@ update_percentage_fallback(void)
 {
   BatteryData *data = &private.data;
   gdouble voltage = data->voltage;
+  gdouble percentage;
 
   if (data->state == UP_DEVICE_STATE_EMPTY ||
       data->state == UP_DEVICE_STATE_FULLY_CHARGED)
@@ -116,11 +117,28 @@ update_percentage_fallback(void)
   }
 
   if (data->charger_online)
-  {
-    data->percentage = (voltage - 3.40) * 125;
-  }
+    percentage = (voltage - 3.40) * 125;
   else
-    data->percentage = (voltage - 3.25) * 105;
+    percentage = (voltage - 3.25) * 105;
+
+  /* Initial value */
+  if (data->percentage == 0)
+  {
+    data->percentage = percentage;
+    return;
+  }
+
+  /* Charging */
+  if (data->charger_online)
+  {
+    if (percentage > data->percentage)
+      data->percentage = percentage;
+    return;
+  }
+
+  /* Discharging */
+  if (percentage < data->percentage)
+    data->percentage = percentage;
 }
 
 static void
