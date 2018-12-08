@@ -265,6 +265,9 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
 
     if (batt_status)
       g_snprintf(text, sizeof(text), "%s", dgettext("osso-dsm-ui", batt_status));
+    else if (!calibrated)
+      /* TODO: translate using gettext */
+      g_snprintf(text, sizeof(text), "Calibration needed");
 
     gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
 
@@ -481,10 +484,10 @@ static void
 battery_status_plugin_update_value_visibility(BatteryStatusAreaItem *plugin)
 {
   static gboolean visible = FALSE;
-  gboolean show = plugin->priv->charger_connected;
 
-  if (plugin->priv->use_design && batt_calibrated())
-    show = TRUE;
+  gboolean show = plugin->priv->charger_connected ||
+                  plugin->priv->use_design ||
+                  !batt_calibrated();
 
   if (visible == show)
     return;
