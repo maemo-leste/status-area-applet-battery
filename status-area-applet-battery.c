@@ -638,8 +638,11 @@ on_property_changed(BatteryData *data, void *user_data)
       battery_status_plugin_update_icon(plugin, bars);
   }
 
-  if (plugin->priv->charger_connected != charger_connected)
+  if (plugin->priv->charger_connected != charger_connected &&
+      data->state != UP_DEVICE_STATE_FULLY_CHARGED)
+  {
     battery_status_plugin_update_charger(plugin);
+  }
 
   if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging)
     battery_status_plugin_update_charging(plugin);
