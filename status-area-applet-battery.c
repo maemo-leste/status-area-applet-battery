@@ -398,21 +398,8 @@ battery_status_plugin_charging_stop(BatteryStatusAreaItem *plugin)
 
   battery_status_plugin_animation_stop(plugin);
 
-  if (plugin->priv->charger_connected && !(plugin->priv->is_charging && plugin->priv->is_discharging))
-  {
-
-    /* TODO: Add this back in */
-#if 0
-    if (plugin->priv->bme_running && libhal_device_property_exists(plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
-    {
-      if (!libhal_device_get_property_bool(plugin->priv->ctx, HAL_BME_UDI, HAL_POSITIVE_RATE_KEY, NULL))
-        hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ni_consumes_more_than_receives"));
-    }
-    else
-      hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_not_charging"));
-#endif
-
-  }
+  if (plugin->priv->charger_connected && !plugin->priv->is_charging)
+    hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ni_consumes_more_than_receives"));
 
   if (plugin->priv->is_charging && plugin->priv->is_discharging)
     battery_status_plugin_update_icon(plugin, 8);
