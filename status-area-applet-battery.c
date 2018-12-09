@@ -80,8 +80,8 @@ struct _BatteryStatusAreaItemPrivate {
   guint gconf_notify;
   guint timer_id;
   int percentage;
-  int current;
-  int design;
+  int charge_now;
+  int charge_full;
   int idle_time;
   int active_time;
   int bars;
@@ -295,9 +295,9 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   ptr = text;
   ptr[0] = '\0';
 
-  if (plugin->priv->current > 0 && plugin->priv->design > 0)
+  if (plugin->priv->charge_now > 0 && plugin->priv->charge_full > 0)
   {
-    ptr += g_snprintf(ptr, limit - ptr, "%d/%d mAh", plugin->priv->current, plugin->priv->design);
+    ptr += g_snprintf(ptr, limit - ptr, "%d/%d mAh", plugin->priv->charge_now, plugin->priv->charge_full);
 
     if ((!plugin->priv->is_charging || !plugin->priv->is_discharging) && plugin->priv->active_time)
     {
@@ -571,16 +571,8 @@ on_property_changed(BatteryData *data, void *user_data)
 
   plugin->priv->charger_connected = data->charger_online;
 
-  if (data->voltage && data->design_voltage)
-  {
-    plugin->priv->current = (int)(1000 * data->energy_now / data->voltage);
-    plugin->priv->design = (int)(1000 * data->energy_full / data->design_voltage);
-  }
-  else
-  {
-    plugin->priv->current = 0;
-    plugin->priv->design = 0;
-  }
+  plugin->priv->charge_now  = (int)(1000 * data->charge_now);
+  plugin->priv->charge_full = (int)(1000 * data->charge_full);
 
   plugin->priv->percentage = (int)data->percentage;
 

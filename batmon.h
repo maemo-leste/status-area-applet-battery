@@ -29,8 +29,6 @@ typedef struct {
   gdouble percentage;
   /* The current voltage of the device */
   gdouble voltage;
-  /* Voltage used to calculate full Ah capacity */
-  gdouble design_voltage;
   /* The temperature of the device in degrees Celsius */
   gdouble temperature;
 
@@ -46,12 +44,11 @@ typedef struct {
   /* The amount of time until the device is fully charged */
   gint64  time_to_full;
 
-  /* Energy left, mWh */
-  gdouble energy_now;
-  /* The energy the device will have when it is empty. This is usually zero. */
-  gdouble energy_empty;
-  /* The amount of energy when the device is fully charged */
-  gdouble energy_full;
+  /* Charge left, Ah */
+  gdouble charge_now;
+  /* The amount of charge when battery is full */
+  gdouble charge_full;
+
   /* The rate of discharge or charge */
   gdouble energy_rate;
 

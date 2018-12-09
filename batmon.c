@@ -165,12 +165,10 @@ battery_prop_changed_cb(UpDevice *battery,
     g_object_get(battery, prop, &data->time_to_full,  NULL);
   else if (!g_strcmp0(prop, "energy-rate"))
     g_object_get(battery, prop, &data->energy_rate,   NULL);
-  else if (!g_strcmp0(prop, "energy"))
-    g_object_get(battery, prop, &data->energy_now,    NULL);
-  else if (!g_strcmp0(prop, "energy-empty"))
-    g_object_get(battery, prop, &data->energy_empty,  NULL);
-  else if (!g_strcmp0(prop, "energy-full"))
-    g_object_get(battery, prop, &data->energy_full,   NULL);
+  else if (!g_strcmp0(prop, "charge"))
+    g_object_get(battery, prop, &data->charge_now,    NULL);
+  else if (!g_strcmp0(prop, "charge-full"))
+    g_object_get(battery, prop, &data->charge_full,   NULL);
   else
     return;
 
@@ -247,27 +245,6 @@ charger_state_changed_cb(UpDevice *charger,
 }
 
 static void
-get_design_voltage(void)
-{
-  BatteryData *data = &private.data;
-  int i;
-
-  if (data->technology == UP_DEVICE_TECHNOLOGY_LITHIUM_ION)
-  {
-    for (i = 1;  i < 4;  i++)
-    {
-      if (2.9 * i < data->voltage && data->voltage < i * 4.3)
-      {
-        data->design_voltage = i * 4.2;
-        return;
-      }
-    }
-  }
-
-  data->design_voltage = data->voltage;
-}
-
-static void
 get_battery_properties(void)
 {
   BatteryData *data = &private.data;
@@ -280,16 +257,14 @@ get_battery_properties(void)
                "state"        , &data->state,
                "time-to-empty", &data->time_to_empty,
                "time-to-full" , &data->time_to_full,
-               "energy"       , &data->energy_now,
-               "energy-empty" , &data->energy_empty,
-               "energy-full"  , &data->energy_full,
+               "charge"       , &data->charge_now,
+               "charge-full"  , &data->charge_full,
                "energy-rate"  , &data->energy_rate,
                "update-time"  , &data->update_time,
                NULL);
 
-  get_design_voltage();
-
-  private.calibrated = data->percentage ? TRUE : FALSE;
+  if (data->charge_full != 0)
+    private.calibrated = TRUE;
 
   if (private.calibrated == FALSE &&
       data->voltage > 2.9 && data->voltage < 4.25)
