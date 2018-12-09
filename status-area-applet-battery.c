@@ -833,7 +833,6 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   g_signal_connect_after(G_OBJECT(event_box), "button-press-event", G_CALLBACK(battery_status_plugin_on_button_clicked_cb), plugin);
 
   plugin->priv->is_discharging = TRUE;
-  /* plugin->priv->bme_running = FALSE; */
   plugin->priv->display_is_off = FALSE;
 
   plugin->priv->use_design = gconf_client_get_int(plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
