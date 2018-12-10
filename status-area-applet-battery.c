@@ -294,7 +294,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   ptr = text;
   ptr[0] = '\0';
 
-  if (plugin->priv->charge_now > 0 && plugin->priv->charge_full > 0)
+  if (plugin->priv->charge_full > 0)
   {
     ptr += g_snprintf(ptr, limit - ptr, "%d/%d mAh", plugin->priv->charge_now, plugin->priv->charge_full);
 
