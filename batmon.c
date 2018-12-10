@@ -44,7 +44,6 @@ static struct {
   UpDevice        *charger;
   BatteryData      data;
   BatteryCallback *cb;
-  gboolean         calibrated;
   gboolean         fallback;
   time_t           force_state;
   void            *user_data;
@@ -263,10 +262,7 @@ get_battery_properties(void)
                "update-time"  , &data->update_time,
                NULL);
 
-  if (data->charge_full != 0)
-    private.calibrated = TRUE;
-
-  if (private.calibrated == FALSE &&
+  if (data->charge_full == 0 &&
       data->voltage > 2.9 && data->voltage < 4.25)
   {
     private.fallback = TRUE;
@@ -376,7 +372,7 @@ get_batt_data(void)
 gboolean
 batt_calibrated(void)
 {
-  return private.calibrated;
+  return private.data.charge_full != 0;
 }
 
 void
