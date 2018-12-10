@@ -82,7 +82,6 @@ struct _BatteryStatusAreaItemPrivate {
   int percentage;
   int charge_now;
   int charge_full;
-  int idle_time;
   int active_time;
   int bars;
   int charging_idx;
@@ -303,11 +302,6 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
     {
       ptr += g_snprintf(ptr, limit - ptr, "  ");
       ptr += battery_status_plugin_str_time(plugin, ptr, limit - ptr, plugin->priv->active_time);
-      if (!plugin->priv->is_charging && plugin->priv->idle_time)
-      {
-        ptr += g_snprintf(ptr, limit - ptr, " / ");
-        ptr += battery_status_plugin_str_time(plugin, ptr, limit - ptr, plugin->priv->idle_time);
-      }
     }
   }
   else
