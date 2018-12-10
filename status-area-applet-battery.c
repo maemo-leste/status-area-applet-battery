@@ -630,8 +630,8 @@ on_property_changed(BatteryData *data, void *user_data)
   battery_status_plugin_update_icon(plugin, bars);
 
 
-  /* If the battery is not calibrated, let's not call battery low all the time. */
-  if (batt_calibrated())
+  /* If the battery is not calibrated, don't call battery low all the time. */
+  if (plugin->priv->percentage != 0 || batt_calibrated())
   {
     if (plugin->priv->percentage < 10)
       battery_status_plugin_battery_low(plugin);
