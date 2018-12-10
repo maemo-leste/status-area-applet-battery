@@ -624,13 +624,17 @@ on_property_changed(BatteryData *data, void *user_data)
   battery_status_plugin_update_icon(plugin, bars);
 
 
-  /* If the battery is not calibrated, don't call battery low all the time. */
-  if (plugin->priv->percentage != 0 || batt_calibrated())
+  /*
+   * Fire a warning message if battery is near empty
+   * This check is for voltage estimated percentage: plugin->priv->percentage != 0
+   */
+  if ((batt_calibrated() || plugin->priv->percentage != 0) &&
+      plugin->priv->is_discharging)
   {
-    if (plugin->priv->percentage < 10)
-      battery_status_plugin_battery_low(plugin);
-    else if (plugin->priv->percentage < 5)
+    if (plugin->priv->percentage < 5)
       battery_status_plugin_battery_empty(plugin);
+    else if (plugin->priv->percentage < 10)
+      battery_status_plugin_battery_low(plugin);
   }
 }
 
