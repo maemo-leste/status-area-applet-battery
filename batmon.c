@@ -166,8 +166,6 @@ battery_prop_changed_cb(UpDevice *battery,
     g_object_get(battery, prop, &data->energy_rate,   NULL);
   else if (!g_strcmp0(prop, "charge"))
     g_object_get(battery, prop, &data->charge_now,    NULL);
-  else if (!g_strcmp0(prop, "charge-full"))
-    g_object_get(battery, prop, &data->charge_full,   NULL);
   else
     return;
 
@@ -186,6 +184,43 @@ battery_voltage_changed_cb(UpDevice *battery,
 
   if (private.cb)
     private.cb(&private.data, private.user_data);
+}
+
+static void
+set_percentage_fallback(void)
+{
+  gdouble voltage = private.data.voltage;
+
+  if (voltage > 2.9 && voltage < 4.25)
+  {
+    private.fallback = TRUE;
+    update_percentage_fallback();
+    g_signal_connect(private.battery, "notify::voltage",
+                     G_CALLBACK(battery_voltage_changed_cb),
+                     NULL);
+  }
+}
+
+/* "Battery calibrated" trigger */
+static void
+battery_charge_full_changed_cb(UpDevice *battery,
+                               GParamSpec *pspec,
+                               gpointer user_data)
+{
+  g_object_get(battery, "charge-full", &private.data.charge_full, NULL);
+
+  if (private.data.charge_full)
+  {
+    if (private.fallback)
+    {
+      private.fallback = FALSE;
+      g_signal_handlers_disconnect_by_func(battery, battery_voltage_changed_cb, NULL);
+    }
+
+    return;
+  }
+
+  set_percentage_fallback();
 }
 
 static void
@@ -262,14 +297,6 @@ get_battery_properties(void)
                "update-time"  , &data->update_time,
                NULL);
 
-  if (data->charge_full == 0 &&
-      data->voltage > 2.9 && data->voltage < 4.25)
-  {
-    private.fallback = TRUE;
-    update_percentage_fallback();
-  }
-
-
   if (private.charger)
   {
     g_object_get(private.charger, "online", &data->charger_online, NULL);
@@ -306,16 +333,16 @@ monitor_battery(void)
                      NULL);
   }
 
-  if (private.fallback)
-  {
-    g_signal_connect(private.battery, "notify::voltage",
-                     G_CALLBACK(battery_voltage_changed_cb),
-                     NULL);
-  }
+  g_signal_connect(private.battery, "notify::charge-full",
+                   G_CALLBACK(battery_charge_full_changed_cb),
+                   NULL);
 
   g_signal_connect(private.battery, "notify::state",
                    G_CALLBACK(battery_state_changed_cb),
                    NULL);
+
+  if (private.data.charge_full == 0)
+    set_percentage_fallback();
 
   return rv ? 0 : 1;
 }
