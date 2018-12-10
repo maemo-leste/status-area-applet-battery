@@ -2,6 +2,7 @@
 *  status-area-applet-battery: Open source rewrite of the Maemo 5 battery applet
 *  for Maemo Leste
 *  Copyright (C) 2017 Merlijn B. W. Wajer
+*  Copyright (C) 2018 Arthur Demchenkov
 *
 *  This program is free software; you can redistribute it and/or modify
 *  it under the terms of the GNU General Public License as published by
