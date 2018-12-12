@@ -129,6 +129,8 @@ update_percentage_fallback(void)
 {
   BatteryData *data = &private.data;
   gdouble voltage = data->voltage;
+  gdouble voltage_empty = data->voltage_empty;
+  gdouble voltage_full  = data->voltage_full;
   gdouble percentage;
 
   if (data->state == UP_DEVICE_STATE_EMPTY ||
@@ -139,9 +141,11 @@ update_percentage_fallback(void)
   }
 
   if (data->charger_online)
-    percentage = (voltage - 3.40) * 125;
+    voltage_empty += 0.45;
   else
-    percentage = (voltage - 3.25) * 105;
+    voltage_empty += 0.15;
+
+  percentage = (voltage - voltage_empty) / (voltage_full - voltage_empty) * 100;
 
   /* Initial value */
   if (data->percentage == 0)
@@ -210,16 +214,26 @@ battery_voltage_changed_cb(UpDevice *battery,
 static void
 set_percentage_fallback(void)
 {
-  gdouble voltage = private.data.voltage;
+  BatteryData *data = &private.data;
+  gdouble voltage = data->voltage;
 
-  if (voltage > 2.9 && voltage < 4.25)
+  if (!data->voltage_empty || !data->voltage_full)
   {
-    private.fallback = TRUE;
-    update_percentage_fallback();
-    g_signal_connect(private.battery, "notify::voltage",
-                     G_CALLBACK(battery_voltage_changed_cb),
-                     NULL);
+    if (data->technology == UP_DEVICE_TECHNOLOGY_LITHIUM_ION &&
+        voltage < 4.25)
+    {
+      data->voltage_empty = 3.0;
+      data->voltage_full  = 4.2;
+    }
+    else
+      return;
   }
+
+  private.fallback = TRUE;
+  update_percentage_fallback();
+  g_signal_connect(private.battery, "notify::voltage",
+                   G_CALLBACK(battery_voltage_changed_cb),
+                   NULL);
 }
 
 /* "Battery calibrated" trigger */
@@ -316,6 +330,8 @@ get_battery_properties(void)
                "charge-full"  , &data->charge_full,
                "energy-rate"  , &data->energy_rate,
                "update-time"  , &data->update_time,
+               "voltage-min-design", &data->voltage_empty,
+               "voltage-max-design", &data->voltage_full,
                NULL);
 
   if (private.charger)

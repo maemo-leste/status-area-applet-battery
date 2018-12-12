@@ -53,6 +53,10 @@ typedef struct {
   /* The rate of discharge or charge */
   gdouble energy_rate;
 
+  /* Battery design voltage */
+  gdouble voltage_empty;
+  gdouble voltage_full;
+
   /* The last time the device was updated */
   guint64 update_time;
 } BatteryData;
