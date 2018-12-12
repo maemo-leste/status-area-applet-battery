@@ -30,6 +30,8 @@
 #include "batmon.h"
 
 static char* blacklist[] = {
+  /* Nokia N900 charger device is exposed as battery by UPower */
+  "bq24150a-0",
   /* End of list */
   NULL
 };
