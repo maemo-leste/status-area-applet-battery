@@ -597,6 +597,12 @@ on_property_changed(BatteryData *data, void *user_data)
       break;
 
     case UP_DEVICE_STATE_CHARGING:
+      if (plugin->priv->is_discharging == TRUE &&
+          plugin->priv->is_charging == TRUE)
+      {
+        /* Prevent undesired messages when fully charged */
+        return;
+      }
       plugin->priv->is_discharging = FALSE;
       plugin->priv->is_charging = TRUE;
       plugin->priv->active_time = data->time_to_full;
