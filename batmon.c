@@ -57,6 +57,7 @@ static struct {
   BatteryData      data;
   BatteryCallback *cb;
   gboolean         fallback;
+  gdouble          prev_voltage;
   time_t           force_state;
   void            *user_data;
 } private = {0};
@@ -128,11 +129,12 @@ static void
 update_percentage_fallback(void)
 {
   BatteryData *data = &private.data;
-  gdouble voltage = data->voltage;
+  gdouble voltage = (data->voltage + private.prev_voltage) / 2;
   gdouble voltage_empty = data->voltage_empty;
   gdouble voltage_full  = data->voltage_full;
   gdouble percentage;
 
+  private.prev_voltage = voltage;
   if (data->state == UP_DEVICE_STATE_EMPTY ||
       data->state == UP_DEVICE_STATE_FULLY_CHARGED)
   {
@@ -141,9 +143,9 @@ update_percentage_fallback(void)
   }
 
   if (data->charger_online)
-    voltage_empty += 0.45;
+    voltage_empty += 0.4;
   else
-    voltage_empty += 0.15;
+    voltage_empty += 0.1;
 
   percentage = (voltage - voltage_empty) / (voltage_full - voltage_empty) * 100;
 
@@ -230,6 +232,7 @@ set_percentage_fallback(void)
   }
 
   private.fallback = TRUE;
+  private.prev_voltage = voltage;
   update_percentage_fallback();
   g_signal_connect(private.battery, "notify::voltage",
                    G_CALLBACK(battery_voltage_changed_cb),
