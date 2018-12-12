@@ -233,8 +233,9 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   gchar text[64];
   gchar *ptr, *limit;
   gboolean calibrated;
+  BatteryStatusAreaItemPrivate *priv = plugin->priv;
 
-  if (plugin->priv->display_is_off)
+  if (priv->display_is_off)
     return;
 
   ptr    = text;
@@ -242,7 +243,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   ptr[0] = '\0';
 
   calibrated = batt_calibrated();
-  if (!calibrated || !plugin->priv->use_design)
+  if (!calibrated || !priv->use_design)
   {
     const char* batt_status = NULL;
 
@@ -251,16 +252,16 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
       /* Show "Battery: xx%" if not fully charged */
       ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
-      if (!plugin->priv->is_charging || !plugin->priv->is_discharging)
-        ptr += g_snprintf(ptr, limit - ptr, "%d%%", plugin->priv->percentage);
+      if (!priv->is_charging || !priv->is_discharging)
+        ptr += g_snprintf(ptr, limit - ptr, "%d%%", priv->percentage);
 
-      gtk_label_set_text(GTK_LABEL(plugin->priv->title), text);
+      gtk_label_set_text(GTK_LABEL(priv->title), text);
       text[0] = '\0';
     }
 
-    if (plugin->priv->is_charging && plugin->priv->is_discharging)
+    if (priv->is_charging && priv->is_discharging)
       batt_status = "incf_me_battery_charged";
-    else if (plugin->priv->is_charging)
+    else if (priv->is_charging)
       batt_status = "incf_me_battery_charging";
 
     if (batt_status)
@@ -269,7 +270,7 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
       /* TODO: translate using gettext */
       g_snprintf(text, sizeof(text), "Calibration needed");
 
-    gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
+    gtk_label_set_text(GTK_LABEL(priv->value), text);
 
     return;
   }
@@ -277,32 +278,32 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   /* "Battery" */
   ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
-  if (plugin->priv->is_charging && plugin->priv->is_discharging)
+  if (priv->is_charging && priv->is_discharging)
     /* "Fully charged" */
     ptr += g_snprintf(ptr, limit - ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charged"));
-  else if (!plugin->priv->is_charging)
-    ptr += g_snprintf(ptr, limit - ptr, "%d%%", plugin->priv->percentage);
+  else if (!priv->is_charging)
+    ptr += g_snprintf(ptr, limit - ptr, "%d%%", priv->percentage);
   else
   {
-    if (plugin->priv->percentage != 0)
-      ptr += g_snprintf(ptr, limit - ptr, "%d%% ", plugin->priv->percentage);
+    if (priv->percentage != 0)
+      ptr += g_snprintf(ptr, limit - ptr, "%d%% ", priv->percentage);
     /* "Charging" */
     ptr += g_snprintf(ptr, limit - ptr, "%s", dgettext("osso-dsm-ui", "incf_me_battery_charging"));
   }
 
-  gtk_label_set_text(GTK_LABEL(plugin->priv->title), text);
+  gtk_label_set_text(GTK_LABEL(priv->title), text);
 
   ptr = text;
   ptr[0] = '\0';
 
-  if (plugin->priv->charge_full > 0)
+  if (priv->charge_full > 0)
   {
-    ptr += g_snprintf(ptr, limit - ptr, "%d/%d mAh", plugin->priv->charge_now, plugin->priv->charge_full);
+    ptr += g_snprintf(ptr, limit - ptr, "%d/%d mAh", priv->charge_now, priv->charge_full);
 
-    if ((!plugin->priv->is_charging || !plugin->priv->is_discharging) && plugin->priv->active_time)
+    if ((!priv->is_charging || !priv->is_discharging) && priv->active_time)
     {
       ptr += g_snprintf(ptr, limit - ptr, "  ");
-      ptr += battery_status_plugin_str_time(plugin, ptr, limit - ptr, plugin->priv->active_time);
+      ptr += battery_status_plugin_str_time(plugin, ptr, limit - ptr, priv->active_time);
     }
   }
   else
@@ -310,29 +311,30 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
     ptr += g_snprintf(ptr, limit - ptr, "No data");
   }
 
-  gtk_label_set_text(GTK_LABEL(plugin->priv->value), text);
+  gtk_label_set_text(GTK_LABEL(priv->value), text);
 }
 
 static gboolean
 battery_status_plugin_animation(gpointer data)
 {
   BatteryStatusAreaItem *plugin = data;
-  int bars = plugin->priv->bars;
+  BatteryStatusAreaItemPrivate *priv = plugin->priv;
+  int bars = priv->bars;
 
-  if (!plugin->priv->timer_id)
+  if (!priv->timer_id)
     return FALSE;
 
-  if (plugin->priv->is_charging && plugin->priv->is_discharging)
+  if (priv->is_charging && priv->is_discharging)
     return FALSE;
 
-  if (bars == 0 || !plugin->priv->show_charge_charging)
-    plugin->priv->charging_idx = 1 + plugin->priv->charging_idx % 8; /* id is 1..8 */
+  if (bars == 0 || !priv->show_charge_charging)
+    priv->charging_idx = 1 + priv->charging_idx % 8; /* id is 1..8 */
   else if (bars == 8)
-    plugin->priv->charging_idx = 7 + plugin->priv->charging_idx % 2; /* id is 7..8 */
+    priv->charging_idx = 7 + priv->charging_idx % 2; /* id is 7..8 */
   else
-    plugin->priv->charging_idx = bars +( plugin->priv->charging_idx - bars + 1 ) %( 9 - bars ); /* id is bars..8 */
+    priv->charging_idx = bars + (priv->charging_idx - bars + 1) % (9 - bars); /* id is bars..8 */
 
-  battery_status_plugin_update_icon(plugin, plugin->priv->charging_idx);
+  battery_status_plugin_update_icon(plugin, priv->charging_idx);
   return TRUE;
 }
 
@@ -352,20 +354,22 @@ battery_status_plugin_charger_disconnected(BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_animation_start(BatteryStatusAreaItem *plugin, gboolean resume)
 {
-  if (plugin->priv->display_is_off || !plugin->priv->is_charging || plugin->priv->is_discharging)
+  BatteryStatusAreaItemPrivate *priv = plugin->priv;
+
+  if (priv->display_is_off || !priv->is_charging || priv->is_discharging)
     return;
 
-  if (plugin->priv->timer_id == 0)
+  if (priv->timer_id == 0)
   {
-    plugin->priv->timer_id = g_timeout_add_seconds(1, battery_status_plugin_animation, plugin);
+    priv->timer_id = g_timeout_add_seconds(1, battery_status_plugin_animation, plugin);
 
     if (resume)
     {
-      if (plugin->priv->charging_idx != 8)
+      if (priv->charging_idx != 8)
         battery_status_plugin_animation(plugin);
     }
     else
-      plugin->priv->charging_idx = plugin->priv->bars;
+      priv->charging_idx = priv->bars;
   }
 }
 
@@ -388,18 +392,20 @@ battery_status_plugin_charging_start(BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_charging_stop(BatteryStatusAreaItem *plugin)
 {
-  if (plugin->priv->timer_id > 0 && plugin->priv->is_charging && plugin->priv->is_discharging)
+  BatteryStatusAreaItemPrivate *priv = plugin->priv;
+
+  if (priv->timer_id > 0 && priv->is_charging && priv->is_discharging)
     hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_full"));
 
   battery_status_plugin_animation_stop(plugin);
 
-  if (plugin->priv->charger_connected && !plugin->priv->is_charging)
+  if (priv->charger_connected && !priv->is_charging)
     hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ni_consumes_more_than_receives"));
 
-  if (plugin->priv->is_charging && plugin->priv->is_discharging)
+  if (priv->is_charging && priv->is_discharging)
     battery_status_plugin_update_icon(plugin, 8);
   else
-    battery_status_plugin_update_icon(plugin, plugin->priv->bars);
+    battery_status_plugin_update_icon(plugin, priv->bars);
 }
 
 static DBusHandlerResult
@@ -553,94 +559,99 @@ battery_status_plugin_gconf_notify(GConfClient *client,
 }
 
 static void
-on_property_changed(BatteryData *data, void *user_data)
+on_property_changed(BatteryData *batt_data, void *user_data)
 {
   BatteryStatusAreaItem *plugin = (BatteryStatusAreaItem *)user_data;
+  BatteryStatusAreaItemPrivate *priv = plugin->priv;
 
   int bars;
 
   /* Used to store previous values, e.g. the values *before* we update them */
-  gboolean is_charging = plugin->priv->is_charging;
-  gboolean is_discharging = plugin->priv->is_discharging;
-  gboolean charger_connected = plugin->priv->charger_connected;
+  gboolean is_charging = priv->is_charging;
+  gboolean is_discharging = priv->is_discharging;
+  gboolean charger_connected = priv->charger_connected;
 
-  plugin->priv->charger_connected = data->charger_online;
+  priv->charger_connected = batt_data->charger_online;
 
-  plugin->priv->charge_now  = (int)(1000 * data->charge_now);
-  plugin->priv->charge_full = (int)(1000 * data->charge_full);
+  priv->charge_now  = (int)(1000 * batt_data->charge_now);
+  priv->charge_full = (int)(1000 * batt_data->charge_full);
 
-  plugin->priv->percentage = (int)data->percentage;
+  priv->percentage = (int)batt_data->percentage;
 
-  bars = (int)(8 *(6.25 + data->percentage) / 100);
+  bars = (int)(8 *(6.25 + batt_data->percentage) / 100);
 
-  switch(data->state)
+  switch(batt_data->state)
   {
     case UP_DEVICE_STATE_UNKNOWN:
     case UP_DEVICE_STATE_DISCHARGING:
     case UP_DEVICE_STATE_EMPTY:
     case UP_DEVICE_STATE_PENDING_CHARGE: /* Unsure about this one */
-      plugin->priv->is_discharging = TRUE;
-      plugin->priv->is_charging = FALSE;
-      plugin->priv->active_time = data->time_to_empty;
+      priv->is_discharging = TRUE;
+      priv->is_charging = FALSE;
+      priv->active_time = batt_data->time_to_empty;
       break;
 
     case UP_DEVICE_STATE_PENDING_DISCHARGE:
-      plugin->priv->is_discharging = FALSE;
-      plugin->priv->is_charging = FALSE;
-      plugin->priv->active_time = 0;
+      priv->is_discharging = FALSE;
+      priv->is_charging = FALSE;
+      priv->active_time = 0;
       break;
 
     case UP_DEVICE_STATE_FULLY_CHARGED:
-      plugin->priv->is_discharging = TRUE;
-      plugin->priv->is_charging = TRUE;
-      plugin->priv->active_time = 0;
+      priv->is_discharging = TRUE;
+      priv->is_charging = TRUE;
+      priv->active_time = 0;
       break;
 
     case UP_DEVICE_STATE_CHARGING:
-      if (plugin->priv->is_discharging == TRUE &&
-          plugin->priv->is_charging == TRUE)
+      if (priv->is_discharging == TRUE &&
+          priv->is_charging == TRUE)
       {
         /* Prevent undesired messages when fully charged */
         return;
       }
-      plugin->priv->is_discharging = FALSE;
-      plugin->priv->is_charging = TRUE;
-      plugin->priv->active_time = data->time_to_full;
+      priv->is_discharging = FALSE;
+      priv->is_charging = TRUE;
+      priv->active_time = batt_data->time_to_full;
       break;
   }
 
-  if (plugin->priv->bars != bars)
+  if (priv->bars != bars)
   {
-    plugin->priv->bars = bars;
-    if (plugin->priv->is_charging && plugin->priv->is_discharging)
+    priv->bars = bars;
+    if (priv->is_charging && priv->is_discharging)
       battery_status_plugin_update_icon(plugin, 8);
-    else if (plugin->priv->is_discharging)
+    else if (priv->is_discharging)
       battery_status_plugin_update_icon(plugin, bars);
   }
 
-  if (plugin->priv->charger_connected != charger_connected &&
-      data->state != UP_DEVICE_STATE_FULLY_CHARGED)
+  if (priv->charger_connected != charger_connected &&
+      batt_data->state != UP_DEVICE_STATE_FULLY_CHARGED)
   {
     battery_status_plugin_update_charger(plugin);
   }
 
-  if (plugin->priv->is_charging != is_charging || plugin->priv->is_discharging != is_discharging)
+  if (priv->is_charging != is_charging ||
+      priv->is_discharging != is_discharging)
+  {
     battery_status_plugin_update_charging(plugin);
+  }
 
   battery_status_plugin_update_text(plugin);
   battery_status_plugin_update_icon(plugin, bars);
 
-
   /*
-   * Fire a warning message if battery is near empty
-   * This check is for voltage estimated percentage: plugin->priv->percentage != 0
+   * Fire a warning message if battery is almost empty.
+   *
+   * This check is for voltage estimated percentage:
+   * priv->percentage != 0
    */
-  if ((batt_calibrated() || plugin->priv->percentage != 0) &&
-      plugin->priv->is_discharging)
+  if ((batt_calibrated() || priv->percentage != 0) &&
+      priv->is_discharging)
   {
-    if (plugin->priv->percentage < 5)
+    if (priv->percentage < 5)
       battery_status_plugin_battery_empty(plugin);
-    else if (plugin->priv->percentage < 10)
+    else if (priv->percentage < 10)
       battery_status_plugin_battery_low(plugin);
   }
 }
@@ -661,6 +672,7 @@ battery_status_plugin_on_button_clicked_cb(GtkWidget *widget,
 static void
 battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 {
+  BatteryStatusAreaItemPrivate *priv;
   DBusError error;
   GtkWidget *alignment;
   GtkWidget *label_box;
@@ -668,10 +680,11 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   GtkStyle *style;
 
   plugin->priv = G_TYPE_INSTANCE_GET_PRIVATE(plugin, battery_status_plugin_get_type(), BatteryStatusAreaItemPrivate);
+  priv = plugin->priv;
 
   dbus_error_init(&error);
 
-  plugin->priv->dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
+  priv->dbus_conn = dbus_bus_get(DBUS_BUS_SYSTEM, &error);
   if (dbus_error_is_set(&error))
   {
     g_warning("Could not open D-Bus session bus connection");
@@ -692,55 +705,55 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   }
   set_batt_cb(on_property_changed, plugin);
 
-  plugin->priv->context = NULL;
-  if (ca_context_create(&plugin->priv->context) < 0)
+  priv->context = NULL;
+  if (ca_context_create(&priv->context) < 0)
   {
     g_warning("Could not create Canberra context");
     return;
   }
 
-  ca_context_open(plugin->priv->context);
+  ca_context_open(priv->context);
 
-  plugin->priv->pl = NULL;
-  if (ca_proplist_create(&plugin->priv->pl) < 0)
+  priv->pl = NULL;
+  if (ca_proplist_create(&priv->pl) < 0)
   {
     g_warning("Could not create Canberra proplist");
     return;
   }
 
-  plugin->priv->gconf = gconf_client_get_default();
-  if (!plugin->priv->gconf)
+  priv->gconf = gconf_client_get_default();
+  if (!priv->gconf)
   {
     g_warning("Could not get gconf client");
     return;
   }
 
-  gconf_client_add_dir(plugin->priv->gconf, GCONF_PATH, GCONF_CLIENT_PRELOAD_NONE, NULL);
-  plugin->priv->gconf_notify = gconf_client_notify_add(plugin->priv->gconf, GCONF_USE_DESIGN_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
-  plugin->priv->gconf_notify = gconf_client_notify_add(plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
-  plugin->priv->gconf_notify = gconf_client_notify_add(plugin->priv->gconf, GCONF_EXEC_APPLICATION, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+  gconf_client_add_dir(priv->gconf, GCONF_PATH, GCONF_CLIENT_PRELOAD_NONE, NULL);
+  priv->gconf_notify = gconf_client_notify_add(priv->gconf, GCONF_USE_DESIGN_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+  priv->gconf_notify = gconf_client_notify_add(priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
+  priv->gconf_notify = gconf_client_notify_add(priv->gconf, GCONF_EXEC_APPLICATION, battery_status_plugin_gconf_notify, plugin, NULL, NULL);
 
-  plugin->priv->title = gtk_label_new(dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
-  if (!plugin->priv->title)
+  priv->title = gtk_label_new(dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
+  if (!priv->title)
   {
     g_warning("Could not create GtkLabel");
     return;
   }
 
-  plugin->priv->value = gtk_label_new(NULL);
-  if (!plugin->priv->value)
+  priv->value = gtk_label_new(NULL);
+  if (!priv->value)
   {
     g_warning("Could not create GtkLabel");
-    gtk_widget_destroy(plugin->priv->title);
+    gtk_widget_destroy(priv->title);
     return;
   }
 
-  plugin->priv->image = gtk_image_new();
-  if (!plugin->priv->image)
+  priv->image = gtk_image_new();
+  if (!priv->image)
   {
     g_warning("Could not create GtkImage");
-    gtk_widget_destroy(plugin->priv->title);
-    gtk_widget_destroy(plugin->priv->value);
+    gtk_widget_destroy(priv->title);
+    gtk_widget_destroy(priv->value);
     return;
   }
 
@@ -748,9 +761,9 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   if (!alignment)
   {
     g_warning("Could not create GtkAlignment");
-    gtk_widget_destroy(plugin->priv->title);
-    gtk_widget_destroy(plugin->priv->value);
-    gtk_widget_destroy(plugin->priv->image);
+    gtk_widget_destroy(priv->title);
+    gtk_widget_destroy(priv->value);
+    gtk_widget_destroy(priv->image);
     return;
   }
 
@@ -758,20 +771,20 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   if (!event_box)
   {
     g_warning("Could not create GtkEventBox");
-    gtk_widget_destroy(plugin->priv->title);
-    gtk_widget_destroy(plugin->priv->value);
-    gtk_widget_destroy(plugin->priv->image);
+    gtk_widget_destroy(priv->title);
+    gtk_widget_destroy(priv->value);
+    gtk_widget_destroy(priv->image);
     gtk_widget_destroy(alignment);
     return;
   }
 
-  plugin->priv->hbox = gtk_hbox_new(FALSE, 0);
-  if (!plugin->priv->hbox)
+  priv->hbox = gtk_hbox_new(FALSE, 0);
+  if (!priv->hbox)
   {
     g_warning("Could not create GtkHBox");
-    gtk_widget_destroy(plugin->priv->title);
-    gtk_widget_destroy(plugin->priv->value);
-    gtk_widget_destroy(plugin->priv->image);
+    gtk_widget_destroy(priv->title);
+    gtk_widget_destroy(priv->value);
+    gtk_widget_destroy(priv->image);
     gtk_widget_destroy(alignment);
     gtk_widget_destroy(event_box);
     return;
@@ -781,68 +794,68 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   if (!label_box)
   {
     g_warning("Could not create GtkVBox");
-    gtk_widget_destroy(plugin->priv->title);
-    gtk_widget_destroy(plugin->priv->value);
-    gtk_widget_destroy(plugin->priv->image);
-    gtk_widget_destroy(plugin->priv->hbox);
+    gtk_widget_destroy(priv->title);
+    gtk_widget_destroy(priv->value);
+    gtk_widget_destroy(priv->image);
+    gtk_widget_destroy(priv->hbox);
     gtk_widget_destroy(alignment);
     gtk_widget_destroy(event_box);
     return;
   }
 
-  plugin->priv->alignment = gtk_alignment_new(0, 0.5, 0, 0);
-  if (!plugin->priv->alignment)
+  priv->alignment = gtk_alignment_new(0, 0.5, 0, 0);
+  if (!priv->alignment)
   {
     g_warning("Could not create GtkAlignment");
-    gtk_widget_destroy(plugin->priv->title);
-    gtk_widget_destroy(plugin->priv->value);
-    gtk_widget_destroy(plugin->priv->image);
-    gtk_widget_destroy(plugin->priv->hbox);
+    gtk_widget_destroy(priv->title);
+    gtk_widget_destroy(priv->value);
+    gtk_widget_destroy(priv->image);
+    gtk_widget_destroy(priv->hbox);
     gtk_widget_destroy(alignment);
     gtk_widget_destroy(event_box);
     gtk_widget_destroy(label_box);
     return;
   }
 
-  gtk_widget_set_name(plugin->priv->title, "hildon-button-title");
-  gtk_widget_set_name(plugin->priv->value, "hildon-button-value");
+  gtk_widget_set_name(priv->title, "hildon-button-title");
+  gtk_widget_set_name(priv->value, "hildon-button-value");
 
-  gtk_misc_set_alignment(GTK_MISC(plugin->priv->title), 0, 0.5);
-  gtk_misc_set_alignment(GTK_MISC(plugin->priv->value), 0, 0.5);
+  gtk_misc_set_alignment(GTK_MISC(priv->title), 0, 0.5);
+  gtk_misc_set_alignment(GTK_MISC(priv->value), 0, 0.5);
 
   style = gtk_rc_get_style_by_paths(gtk_settings_get_default(), "SmallSystemFont", NULL, G_TYPE_NONE);
   if (style && style->font_desc)
-    gtk_widget_modify_font(GTK_WIDGET(plugin->priv->value), style->font_desc);
+    gtk_widget_modify_font(GTK_WIDGET(priv->value), style->font_desc);
 
-  gtk_container_add(GTK_CONTAINER(plugin->priv->alignment), plugin->priv->title);
-  gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->alignment, FALSE, FALSE, 0);
-  gtk_alignment_set_padding(GTK_ALIGNMENT(plugin->priv->alignment), 12, 12, 0, 0);
+  gtk_container_add(GTK_CONTAINER(priv->alignment), priv->title);
+  gtk_box_pack_start(GTK_BOX(label_box), priv->alignment, FALSE, FALSE, 0);
+  gtk_alignment_set_padding(GTK_ALIGNMENT(priv->alignment), 12, 12, 0, 0);
 
-  gtk_box_pack_start(GTK_BOX(label_box), plugin->priv->value, TRUE, TRUE, 0);
-  gtk_widget_set_no_show_all(plugin->priv->value, TRUE);
+  gtk_box_pack_start(GTK_BOX(label_box), priv->value, TRUE, TRUE, 0);
+  gtk_widget_set_no_show_all(priv->value, TRUE);
 
-  gtk_box_pack_start(GTK_BOX(plugin->priv->hbox), plugin->priv->image, FALSE, FALSE, 0);
-  gtk_box_pack_end(GTK_BOX(plugin->priv->hbox), label_box, TRUE, TRUE, 0);
+  gtk_box_pack_start(GTK_BOX(priv->hbox), priv->image, FALSE, FALSE, 0);
+  gtk_box_pack_end(GTK_BOX(priv->hbox), label_box, TRUE, TRUE, 0);
 
-  gtk_container_add(GTK_CONTAINER(alignment), plugin->priv->hbox);
+  gtk_container_add(GTK_CONTAINER(alignment), priv->hbox);
   gtk_container_add(GTK_CONTAINER(event_box), alignment);
   gtk_widget_set_events(event_box, GDK_BUTTON_PRESS_MASK);
   g_signal_connect_after(G_OBJECT(event_box), "button-press-event", G_CALLBACK(battery_status_plugin_on_button_clicked_cb), plugin);
 
-  plugin->priv->is_discharging = TRUE;
-  plugin->priv->display_is_off = FALSE;
+  priv->is_discharging = TRUE;
+  priv->display_is_off = FALSE;
 
-  plugin->priv->use_design = gconf_client_get_int(plugin->priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
-  plugin->priv->show_charge_charging = gconf_client_get_bool(plugin->priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
-  plugin->priv->exec_application = gconf_client_get_string(plugin->priv->gconf, GCONF_EXEC_APPLICATION, NULL);
+  priv->use_design = gconf_client_get_int(priv->gconf, GCONF_USE_DESIGN_KEY, NULL);
+  priv->show_charge_charging = gconf_client_get_bool(priv->gconf, GCONF_SHOW_CHARGE_CHARGING_KEY, NULL);
+  priv->exec_application = gconf_client_get_string(priv->gconf, GCONF_EXEC_APPLICATION, NULL);
 
-  plugin->priv->bars = -2;
+  priv->bars = -2;
   on_property_changed(get_batt_data(), plugin);
   battery_status_plugin_update_image_padding(plugin);
   battery_status_plugin_update_value_visibility(plugin);
 
-  dbus_bus_add_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
-  dbus_connection_add_filter(plugin->priv->dbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
+  dbus_bus_add_match(priv->dbus_conn, DBUS_MATCH_RULE, NULL);
+  dbus_connection_add_filter(priv->dbus_conn, battery_status_plugin_dbus_display, plugin, NULL);
 
   gtk_container_add(GTK_CONTAINER(plugin), event_box);
   gtk_widget_show_all(GTK_WIDGET(plugin));
@@ -852,48 +865,49 @@ static void
 battery_status_plugin_finalize(GObject *object)
 {
   BatteryStatusAreaItem *plugin = G_TYPE_CHECK_INSTANCE_CAST(object, battery_status_plugin_get_type(), BatteryStatusAreaItem);
+  BatteryStatusAreaItemPrivate *priv = plugin->priv;
 
-  if (plugin->priv->pl)
+  if (priv->pl)
   {
-    ca_proplist_destroy(plugin->priv->pl);
-    plugin->priv->pl = NULL;
+    ca_proplist_destroy(priv->pl);
+    priv->pl = NULL;
   }
 
-  if (plugin->priv->context)
+  if (priv->context)
   {
-    ca_context_destroy(plugin->priv->context);
-    plugin->priv->context = NULL;
+    ca_context_destroy(priv->context);
+    priv->context = NULL;
   }
 
-  if (plugin->priv->gconf)
+  if (priv->gconf)
   {
-    if (plugin->priv->gconf_notify)
+    if (priv->gconf_notify)
     {
-      gconf_client_notify_remove(plugin->priv->gconf, plugin->priv->gconf_notify);
-      plugin->priv->gconf_notify = 0;
+      gconf_client_notify_remove(priv->gconf, priv->gconf_notify);
+      priv->gconf_notify = 0;
     }
-    gconf_client_remove_dir(plugin->priv->gconf, GCONF_PATH, NULL);
-    gconf_client_clear_cache(plugin->priv->gconf);
-    g_object_unref(plugin->priv->gconf);
-    plugin->priv->gconf = NULL;
+    gconf_client_remove_dir(priv->gconf, GCONF_PATH, NULL);
+    gconf_client_clear_cache(priv->gconf);
+    g_object_unref(priv->gconf);
+    priv->gconf = NULL;
   }
 
   free_batt();
 
-  if (plugin->priv->dbus_conn)
+  if (priv->dbus_conn)
   {
-    dbus_connection_unref(plugin->priv->dbus_conn);
-    plugin->priv->dbus_conn = NULL;
+    dbus_connection_unref(priv->dbus_conn);
+    priv->dbus_conn = NULL;
   }
 
-  if (plugin->priv->timer_id > 0)
+  if (priv->timer_id > 0)
   {
-    g_source_remove(plugin->priv->timer_id);
-    plugin->priv->timer_id = 0;
+    g_source_remove(priv->timer_id);
+    priv->timer_id = 0;
   }
 
-  dbus_bus_remove_match(plugin->priv->dbus_conn, DBUS_MATCH_RULE, NULL);
-  dbus_connection_remove_filter(plugin->priv->dbus_conn, battery_status_plugin_dbus_display, plugin);
+  dbus_bus_remove_match(priv->dbus_conn, DBUS_MATCH_RULE, NULL);
+  dbus_connection_remove_filter(priv->dbus_conn, battery_status_plugin_dbus_display, plugin);
 
   hd_status_plugin_item_set_status_area_icon(HD_STATUS_PLUGIN_ITEM(plugin), NULL);
 
