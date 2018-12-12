@@ -29,6 +29,11 @@
 
 #include "batmon.h"
 
+static char* blacklist[] = {
+  /* End of list */
+  NULL
+};
+
 /*
  * TODO:
  * - Make init code async perhaps ?
@@ -55,13 +60,22 @@ static struct {
 static void
 check_device(UpDevice *dev)
 {
+  gchar *native_path;
   guint  kind;
   guint  technology;
+  gint   i;
 
   g_object_get(dev,
+               "native-path", &native_path,
                "kind"       , &kind,
                "technology" , &technology,
                NULL);
+
+  for (i = 0;  blacklist[i] != NULL;  i++)
+  {
+    if (!g_strcmp0(native_path, blacklist[i]))
+      return;
+  }
 
   if (kind == UP_DEVICE_KIND_BATTERY)
   {
