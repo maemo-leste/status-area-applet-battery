@@ -28,13 +28,7 @@
 typedef struct {
   /* The percentage charge of the device */
   gdouble percentage;
-  /* The current voltage of the device */
-  gdouble voltage;
-  /* The temperature of the device in degrees Celsius */
-  gdouble temperature;
 
-  /* The battery technology e.g. UP_DEVICE_TECHNOLOGY_LITHIUM_ION */
-  guint   technology;
   /* Is charging device connected to AC? */
   gboolean charger_online;
   /* The state the device is in at this time, e.g. UP_DEVICE_STATE_EMPTY */
@@ -49,12 +43,6 @@ typedef struct {
   gdouble charge_now;
   /* The amount of charge when battery is full */
   gdouble charge_full;
-
-  /* The rate of discharge or charge */
-  gdouble energy_rate;
-
-  /* The last time the device was updated */
-  guint64 update_time;
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData *, void *);

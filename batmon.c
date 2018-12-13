@@ -130,20 +130,12 @@ battery_prop_changed_cb(UpDevice *battery,
   BatteryData *data = &private.data;
   const gchar *prop = pspec->name;
 
-  if (!g_strcmp0(prop, "update-time"))
-    g_object_get(battery, prop, &data->update_time,   NULL);
-  else if (!g_strcmp0(prop, "voltage"))
-    g_object_get(battery, prop, &data->voltage,       NULL);
-  else if (!g_strcmp0(prop, "percentage"))
+  if (!g_strcmp0(prop, "percentage"))
     g_object_get(battery, prop, &data->percentage,    NULL);
-  else if (!g_strcmp0(prop, "temperature"))
-    g_object_get(battery, prop, &data->temperature,   NULL);
   else if (!g_strcmp0(prop, "time-to-empty"))
     g_object_get(battery, prop, &data->time_to_empty, NULL);
   else if (!g_strcmp0(prop, "time-to-full"))
     g_object_get(battery, prop, &data->time_to_full,  NULL);
-  else if (!g_strcmp0(prop, "energy-rate"))
-    g_object_get(battery, prop, &data->energy_rate,   NULL);
   else if (!g_strcmp0(prop, "charge"))
     g_object_get(battery, prop, &data->charge_now,    NULL);
   else if (!g_strcmp0(prop, "charge-full"))
@@ -210,16 +202,11 @@ get_battery_properties(void)
 
   g_object_get(private.battery,
                "percentage"   , &data->percentage,
-               "voltage"      , &data->voltage,
-               "temperature"  , &data->temperature,
-               "technology"   , &data->technology,
                "state"        , &data->state,
                "time-to-empty", &data->time_to_empty,
                "time-to-full" , &data->time_to_full,
                "charge"       , &data->charge_now,
                "charge-full"  , &data->charge_full,
-               "energy-rate"  , &data->energy_rate,
-               "update-time"  , &data->update_time,
                NULL);
 
   if (private.charger)
