@@ -14,7 +14,7 @@ Build-Depends:
  libdbus-1-dev,
  libdbus-glib-1-dev,
  libglib2.0-dev,
- libupower-glib-dev (>=1:0.99.7.4)
+ libupower-glib-dev (>=1:0.99.7.5)
 Standards-Version: 3.7.3
 
 Package: status-area-applet-battery
@@ -25,6 +25,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
  mediaplayer-l10n-mr0,
  osso-sounds-ui,
  profiled (>= 0.0.3),
- upower (>=1:0.99.7.4)
+ upower (>=1:0.99.7.5)
 Description: status area battery applet
  Battery applet for the status area. This will show the battery information.
