@@ -1,3 +1,10 @@
+status-area-applet-battery (1.3-2) unstable; urgency=medium
+
+  * Improve voltage estimated percentage fallback
+  * Prevent undesired messages when fully charged
+
+ -- Arthur D. <spinal.by@gmail.com>  Thu, 13 Dec 2018 11:27:58 +0300
+
 status-area-applet-battery (1.3-1) unstable; urgency=medium
 
   * Add Droid4 support
