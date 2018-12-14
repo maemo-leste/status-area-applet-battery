@@ -315,38 +315,3 @@ free_batt(void)
 
   memset(&private, 0, sizeof(private));
 }
-
-#if 0
-static void
-testf(BatteryData *d)
-{
-  g_warning("Test callback");
-  return;
-}
-
-static int
-main_loop(void)
-{
-  static GMainLoop *loop = NULL;
-
-  if (init_batt()) {
-    g_warning("Failed to find device");
-    return 1;
-  }
-
-  //set_batt_cb(testf);
-
-  loop = g_main_loop_new(NULL, FALSE);
-  g_main_loop_run(loop);
-
-  free_batt();
-
-  return 0;
-}
-
-int
-main(int argc, char *argv[])
-{
-  main_loop();
-}
-#endif
