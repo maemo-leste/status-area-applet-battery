@@ -29,7 +29,7 @@
 
 #include "batmon.h"
 
-static char* blacklist[] = {
+static const char* blacklist[] = {
   /* This driver should be removed from the kernel completely */
   "rx51-battery",
   /* Nokia N900 charger device is exposed as battery by UPower */
