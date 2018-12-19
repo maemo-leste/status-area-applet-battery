@@ -255,13 +255,10 @@ monitor_battery(void)
 int
 init_batt(void)
 {
-  GError *error = NULL;
-
-  private.client = up_client_new_full(NULL, &error);
+  private.client = up_client_new();
   if (private.client == NULL)
   {
-    g_printerr("Cannot connect to upowerd: %s\n", error->message);
-    g_error_free(error);
+    g_printerr("Cannot connect to upowerd\n");
     goto fail;
   }
 
