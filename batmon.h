@@ -2,6 +2,7 @@
 *  status-area-applet-battery: Open source rewrite of the Maemo 5 battery applet
 *  for Maemo Leste
 *  Copyright (C) 2017 Merlijn B. W. Wajer
+*  Copyright (C) 2018 Arthur Demchenkov
 *
 *  This program is free software; you can redistribute it and/or modify
 *  it under the terms of the GNU General Public License as published by
@@ -21,37 +22,35 @@
 
 #ifndef _BATMON_H_
 #define _BATMON_H_
-#include <gio/gio.h>
 
-#include "upower-defs.h"
+#include <glib.h>
 
-/* upower data */
 typedef struct {
-    gdouble percentage;
-    gdouble voltage;
-    gdouble temperature;
+  /* The percentage charge of the device */
+  gdouble percentage;
 
-    guint32 technology;
-    guint32 state;
+  /* Is charging device connected to AC? */
+  gboolean charger_online;
+  /* The state the device is in at this time, e.g. UP_DEVICE_STATE_EMPTY */
+  guint   state;
 
-    gint64 time_to_full;
-    gint64 time_to_empty;
+  /* The amount of time until the device is empty */
+  gint64  time_to_empty;
+  /* The amount of time until the device is fully charged */
+  gint64  time_to_full;
 
-    gdouble energy_now;
-    gdouble energy_empty;
-    gdouble energy_full;
-    gdouble energy_rate;
-
-    guint64 update_time;
-
-    gboolean calibrated; /* TODO set this */
+  /* Charge left, Ah */
+  gdouble charge_now;
+  /* The amount of charge when battery is full */
+  gdouble charge_full;
 } BatteryData;
 
-typedef void BatteryCallback (BatteryData*, void*);
+typedef void BatteryCallback (BatteryData *, void *);
 
-int init_batt(void);
-void set_batt_cb(BatteryCallback, void*);
-BatteryData *get_batt_data(void);
-void free_bat(void);
+int            init_batt       (void);
+void           set_batt_cb     (BatteryCallback, void *);
+BatteryData   *get_batt_data   (void);
+gboolean       batt_calibrated (void);
+void           free_batt       (void);
 
 #endif /* _BATMON_H_ */

@@ -2,6 +2,7 @@
 *  status-area-applet-battery: Open source rewrite of the Maemo 5 battery applet
 *  for Maemo Leste
 *  Copyright (C) 2017 Merlijn B. W. Wajer
+*  Copyright (C) 2018 Arthur Demchenkov
 *
 *  This program is free software; you can redistribute it and/or modify
 *  it under the terms of the GNU General Public License as published by
@@ -23,7 +24,21 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <gio/gio.h>
+#include <upower.h>
+
 #include "batmon.h"
+
+static const char* blacklist[] = {
+  /* This driver should be removed from the kernel completely */
+  "rx51-battery",
+  /* Nokia N900 charger device is exposed as battery by UPower */
+  "bq24150a-0",
+  /* Droid4 line power device (driver doesn't send uevents) */
+  "usb",
+  /* End of list */
+  NULL
+};
 
 /*
  * TODO:
@@ -34,336 +49,266 @@
  * - Original applet also reads rx51_battery -- I think only for some design values.
  */
 
-/* Only contains values we care about */
-typedef struct {
-    guint32 type;
-    guint32 technology;
-    gchar* upower_path;
-} UPowerDevice;
-
 /* Private data */
-typedef struct {
-    UPowerDevice *dev;
-    GDBusProxy *proxy;
-    BatteryData data;
-    BatteryCallback *cb;
-    void* user_data;
-} PrivData;
-
-
-UPowerDevice* alloc_upower_device(void) {
-    UPowerDevice *dev;
-    dev = calloc(1, sizeof(UPowerDevice));
-    return dev;
-}
-
-
-void free_upower_device(UPowerDevice* dev) {
-    if (dev->upower_path)
-        g_free(dev->upower_path);
-    free(dev);
-}
-
-static PrivData private = { .dev = NULL,
-                            .proxy = NULL,
-                            .cb = NULL,
-                            .user_data = NULL };
-
-
-GVariant* get_device_properties(GDBusConnection* bus, gchar* device) {
-    GVariant *res;
-    GError *error = NULL;
-
-    res = g_dbus_connection_call_sync(bus,
-            UPOWER_BUS_NAME,
-            device,
-            DBUS_PROPERTIES_INTERFACE_NAME,
-            "GetAll",
-            g_variant_new("(s)", UPOWER_DEVICE_INTERFACE_NAME), /* params */
-            NULL, /* reply type */
-            G_DBUS_CALL_FLAGS_NONE, /* flags */
-            -1, /* Timeout */
-            NULL,
-            &error);
-
-    if (error) {
-        fprintf(stderr, "Unable to get properties: %s\n", error->message);
-        g_error_free(error);
-        g_variant_unref(res);
-        return NULL;
-    }
-
-    GVariant* tmp;
-    g_variant_get(res, "(*)", &tmp);
-
-    g_variant_unref(res);
-
-    return tmp;
-}
-
-UPowerDevice* get_device(GVariant *device_properties) {
-    UPowerDevice *dev;
-    GVariantDict *dict;
-
-    dev = alloc_upower_device();
-
-    dict = g_variant_dict_new(device_properties);
-
-    g_variant_dict_lookup(dict, "Type", "u", &(dev->type));
-    g_variant_dict_lookup(dict, "Technology", "u", &(dev->technology));
-
-    g_variant_dict_unref(dict);
-
-    return dev;
-}
-
-gboolean want_device(UPowerDevice *dev) {
-    return (dev->type == UPOWER_TYPE_BATTERY) &&
-           /* Check for sensible technology value to rule out non-batteries */
-           (dev->technology != UPOWER_TECHNOLOGY_UNKNOWN);
-}
-
-UPowerDevice* find_battery_device(GDBusConnection* bus) {
-    GVariantIter* iter;
-    GVariant* res = NULL;
-    GError* error = NULL;
-    UPowerDevice* result = NULL;
-
-    res = g_dbus_connection_call_sync(bus,
-            UPOWER_BUS_NAME,
-            UPOWER_PATH_NAME,
-            UPOWER_INTERFACE_NAME,
-            "EnumerateDevices",
-            NULL, /* params */
-            NULL, /* reply type */
-            G_DBUS_CALL_FLAGS_NONE, /* flags */
-            -1, /* Timeout */
-            NULL,
-            &error);
-
-    if (res == NULL) {
-        fprintf(stderr, "Cannot enumerate devices: %s\n", error->message);
-        g_error_free(error);
-        return NULL;
-    }
-
-    /* Is tuple, extract first item (which is a list/tuple) */
-    GVariant* tmp = g_variant_get_child_value(res, 0);
-    GVariant* props;
-
-    iter = g_variant_iter_new(tmp);
-    for (unsigned int i = 0; i < g_variant_iter_n_children(iter); i++) {
-        GVariant* val;
-        val = g_variant_iter_next_value(iter);
-
-        gchar* device_path;
-        g_variant_get(val, "o", &device_path);
-
-        props = get_device_properties(bus, device_path);
-        if (props) {
-            UPowerDevice *dev = get_device(props);
-            /*print_props(props);*/
-
-            if (want_device(dev)) {
-                result = dev;
-                result->upower_path = strdup(device_path);
-            } else {
-                free_upower_device(dev);
-            }
-
-            g_variant_unref(props);
-        }
-
-        g_free(device_path);
-        g_variant_unref(val);
-
-        if (result != NULL)
-            break;
-    }
-
-    g_variant_unref(tmp);
-    g_variant_unref(res);
-
-    return result;
-}
-
-#define _UPDATE_BATT_DATA(keyname, structname, keytype) \
-    if (strcmp(name, keyname) == 0) { \
-        g_variant_get(value, keytype, structname); \
-        fprintf(stderr, "*** UPDATING %s\n", keyname); \
-        return 0; \
-    }
-
-int update_property(const gchar* name, GVariant* value) {
-    _UPDATE_BATT_DATA("Percentage", &private.data.percentage, "d");
-    _UPDATE_BATT_DATA("Voltage", &private.data.voltage, "d");
-    _UPDATE_BATT_DATA("Temperature", &private.data.temperature, "d");
-
-    _UPDATE_BATT_DATA("Technology", &private.data.technology, "u");
-    _UPDATE_BATT_DATA("State", &private.data.state, "u");
-
-    _UPDATE_BATT_DATA("TimeToEmpty", &private.data.time_to_empty, "x");
-    _UPDATE_BATT_DATA("TimeToFull", &private.data.time_to_full, "x");
-
-    _UPDATE_BATT_DATA("Energy", &private.data.energy_now, "d");
-    _UPDATE_BATT_DATA("EnergyEmpty", &private.data.energy_empty, "d");
-    _UPDATE_BATT_DATA("EnergyFull", &private.data.energy_full, "d");
-    _UPDATE_BATT_DATA("EnergyRate", &private.data.energy_rate, "d");
-
-    _UPDATE_BATT_DATA("Voltage", &private.data.voltage, "d");
-
-    _UPDATE_BATT_DATA("UpdateTime", &private.data.update_time, "t");
-
-    /* No match */
-    return 1;
-}
-
-
-/* Inspiration taken from gio/tests/gdbus-example-watch-proxy.c */
-static void on_properties_changed(GDBusProxy *proxy,
-        GVariant *changed_properties,
-        const gchar* const *invalidated_properties,
-        gpointer user_data) {
-    (void)proxy;
-    (void)user_data;
-    (void)invalidated_properties;
-
-    if (g_variant_n_children (changed_properties) > 0)
-    {
-        GVariantIter *iter;
-        const gchar *key;
-        GVariant *value;
-
-        g_variant_get (changed_properties, "a{sv}", &iter);
-        while (g_variant_iter_loop (iter, "{&sv}", &key, &value)) {
-            update_property(key, value);
-        }
-        g_variant_iter_free (iter);
-    }
-
-    if (private.cb)
-        private.cb(&private.data, private.user_data);
-}
-
-/* Inspiration taken from gio/tests/gdbus-example-watch-proxy.c */
-static void get_initial_properties_from_proxy(GDBusProxy *proxy) {
-    gchar **property_names;
-    guint n;
-
-    property_names = g_dbus_proxy_get_cached_property_names(proxy);
-    for (n = 0; property_names != NULL && property_names[n] != NULL; n++) {
-        const gchar *key = property_names[n];
-        GVariant *value;
-        value = g_dbus_proxy_get_cached_property(proxy, key);
-        update_property(key, value);
-    }
-    g_strfreev(property_names);
-}
-
-int monitor_battery(void) {
-    GDBusProxyFlags flags = G_DBUS_PROXY_FLAGS_NONE;
-    GError *error = NULL;
-
-    private.proxy = g_dbus_proxy_new_for_bus_sync(G_BUS_TYPE_SYSTEM,
-                                         flags,
-                                         NULL, /* GDBusInterfaceInfo */
-                                         UPOWER_BUS_NAME,
-                                         private.dev->upower_path,
-                                         UPOWER_DEVICE_INTERFACE_NAME,
-                                         NULL, /* GCancellable */
-                                         &error);
-    if (private.proxy == NULL) {
-        fprintf(stderr, "Could not create dbus proxy\n");
-        g_error_free(error);
-        return 1;
-    }
-
-    g_signal_connect(private.proxy, "g-properties-changed",
-                     G_CALLBACK(on_properties_changed), NULL);
-
-    return 0;
-}
-
-int init_batt(void) {
-    GDBusConnection *bus = NULL;
-    GError *error = NULL;
-
-    bus = g_bus_get_sync(G_BUS_TYPE_SYSTEM, NULL, &error);
-    if (bus == NULL) {
-        fprintf(stderr, "Could not get dbus system session bus: %s\n", error->message);
-        g_error_free(error);
-        return 1;
-    }
-
-    private.dev = find_battery_device(bus);
-
-    if (private.dev == NULL) {
-        fprintf(stderr, "Failed to find device\n");
-        return 1;
-    }
-
-    /* Zero battery data structure */
-    memset(&(private.data), 0, sizeof(BatteryData));
-
-    if (monitor_battery()) {
-        fprintf(stderr, "Failed to monitor events\n");
-        return 1;
-    }
-
-    get_initial_properties_from_proxy(private.proxy);
-
-    return 0;
-}
-
-void set_batt_cb(BatteryCallback *cb, void* user_data) {
-    private.cb = cb;
-    private.user_data = user_data;
-}
-
-BatteryData *get_batt_data(void) {
-    return &(private.data);
-}
-
-void free_batt(void) {
-    free_upower_device(private.dev);
-    g_object_unref(private.proxy);
-}
-
-#if 0
-void testf(BatteryData *d) {
-    (void)d;
-    fprintf(stderr, "Test callback\n");
-    return;
-}
-#endif
-
-int main_loop(void) {
-    static GMainLoop *loop = NULL;
-
-    if (init_batt()) {
-        fprintf(stderr, "Failed to find device\n");
-        return 1;
-    }
-
-#if 0
-    set_batt_cb(testf);
-#endif
-
-    loop = g_main_loop_new(NULL, FALSE);
-    g_main_loop_run(loop);
-
-    free_batt();
-
-    return 0;
-}
-
-#if 0
-int
-main (int argc, char *argv[])
+static struct {
+  UpClient        *client;
+  UpDevice        *battery;
+  UpDevice        *charger;
+  BatteryData      data;
+  BatteryCallback *cb;
+  time_t           force_state;
+  void            *user_data;
+} private = {0};
+
+
+/* If there're multiple batteries/chargers, we take the first suggested */
+static void
+check_device(UpDevice *dev)
 {
-    (void)argc;
-    (void)argv;
+  gchar *native_path;
+  guint  kind;
+  guint  technology;
+  gint   i;
 
-    main_loop();
+  g_object_get(dev,
+               "native-path", &native_path,
+               "kind"       , &kind,
+               "technology" , &technology,
+               NULL);
+
+  for (i = 0;  blacklist[i] != NULL;  i++)
+  {
+    if (!g_strcmp0(native_path, blacklist[i]))
+      return;
+  }
+
+  if (kind == UP_DEVICE_KIND_BATTERY)
+  {
+    if (private.battery == NULL &&
+        technology != UP_DEVICE_TECHNOLOGY_UNKNOWN)
+    {
+      private.battery = dev;
+    }
+
+    return;
+  }
+
+  if (kind == UP_DEVICE_KIND_LINE_POWER &&
+      private.charger == NULL)
+  {
+    private.charger = dev;
+  }
 }
-#endif
+
+/* Find battery/charger devices and add them to private */
+static void
+find_upower_devices()
+{
+  GPtrArray *devices;
+  guint      i;
+
+  devices = up_client_get_devices(private.client);
+
+  for (i = 0;  i < devices->len;  i++)
+  {
+    UpDevice *device = g_ptr_array_index(devices, i);
+
+    check_device(device);
+
+    if (private.battery && private.charger)
+      break;
+  }
+
+  g_ptr_array_unref (devices);
+}
+
+static void
+battery_prop_changed_cb(UpDevice *battery,
+                        GParamSpec *pspec,
+                        gpointer user_data)
+{
+  BatteryData *data = &private.data;
+  const gchar *prop = pspec->name;
+
+  if (!g_strcmp0(prop, "percentage"))
+    g_object_get(battery, prop, &data->percentage,    NULL);
+  else if (!g_strcmp0(prop, "time-to-empty"))
+    g_object_get(battery, prop, &data->time_to_empty, NULL);
+  else if (!g_strcmp0(prop, "time-to-full"))
+    g_object_get(battery, prop, &data->time_to_full,  NULL);
+  else if (!g_strcmp0(prop, "charge"))
+    g_object_get(battery, prop, &data->charge_now,    NULL);
+  else if (!g_strcmp0(prop, "charge-full"))
+    g_object_get(battery, prop, &data->charge_full,   NULL);
+  else
+    return;
+
+  if (private.cb)
+    private.cb(data, private.user_data);
+}
+
+static void
+battery_state_changed_cb(UpDevice *battery,
+                         GParamSpec *pspec,
+                         gpointer user_data)
+{
+  BatteryData *data = &private.data;
+  g_object_get(battery, "state", &data->state, NULL);
+
+  if (private.charger == NULL)
+  {
+    data->charger_online = data->state == UP_DEVICE_STATE_CHARGING ||
+                           data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
+                           data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
+  }
+  else if (time(NULL) < private.force_state)
+  {
+    if (data->charger_online)
+    {
+      if (data->state == UP_DEVICE_STATE_DISCHARGING)
+        data->state = UP_DEVICE_STATE_CHARGING;
+    }
+    else if (data->state == UP_DEVICE_STATE_CHARGING)
+      data->state = UP_DEVICE_STATE_DISCHARGING;
+  }
+
+  if (private.cb)
+    private.cb(data, private.user_data);
+}
+
+static void
+charger_state_changed_cb(UpDevice *charger,
+                         GParamSpec *pspec,
+                         gpointer user_data)
+{
+  BatteryData *data = &private.data;
+
+  g_object_get(charger, "online", &data->charger_online, NULL);
+
+  private.force_state = time(NULL) + 10;
+  if (data->charger_online)
+    data->state = UP_DEVICE_STATE_CHARGING;
+  else
+    data->state = UP_DEVICE_STATE_DISCHARGING;
+
+  if (private.cb)
+    private.cb(data, private.user_data);
+}
+
+static void
+get_battery_properties(void)
+{
+  BatteryData *data = &private.data;
+
+  g_object_get(private.battery,
+               "percentage"   , &data->percentage,
+               "state"        , &data->state,
+               "time-to-empty", &data->time_to_empty,
+               "time-to-full" , &data->time_to_full,
+               "charge"       , &data->charge_now,
+               "charge-full"  , &data->charge_full,
+               NULL);
+
+  if (private.charger)
+  {
+    g_object_get(private.charger, "online", &data->charger_online, NULL);
+    private.force_state = time(NULL) + 10;
+
+    if (data->charger_online)
+    {
+      if (data->state == UP_DEVICE_STATE_DISCHARGING)
+        data->state = UP_DEVICE_STATE_CHARGING;
+    }
+    else if (data->state == UP_DEVICE_STATE_CHARGING)
+      data->state = UP_DEVICE_STATE_DISCHARGING;
+  }
+  else
+  {
+    /* Guess charging state using battery device state */
+    data->charger_online = data->state == UP_DEVICE_STATE_CHARGING ||
+                           data->state == UP_DEVICE_STATE_FULLY_CHARGED ||
+                           data->state == UP_DEVICE_STATE_PENDING_DISCHARGE;
+  }
+}
+
+static int
+monitor_battery(void)
+{
+  gulong rv = g_signal_connect(private.battery, "notify",
+                               G_CALLBACK(battery_prop_changed_cb),
+                               NULL);
+
+  if (private.charger)
+  {
+    g_signal_connect(private.charger, "notify::online",
+                     G_CALLBACK(charger_state_changed_cb),
+                     NULL);
+  }
+
+  g_signal_connect(private.battery, "notify::state",
+                   G_CALLBACK(battery_state_changed_cb),
+                   NULL);
+
+  return rv ? 0 : 1;
+}
+
+int
+init_batt(void)
+{
+  private.client = up_client_new();
+  if (private.client == NULL)
+  {
+    g_printerr("Cannot connect to upowerd\n");
+    goto fail;
+  }
+
+  find_upower_devices();
+
+  if (private.battery == NULL)
+  {
+    g_warning("Failed to find battery");
+    goto fail;
+  }
+
+  get_battery_properties();
+
+  if (monitor_battery())
+  {
+    g_warning("Failed to monitor events");
+    goto fail;
+  }
+
+  return 0;
+
+fail:
+  free_batt();
+  return 1;
+}
+
+void
+set_batt_cb(BatteryCallback *cb, void *user_data)
+{
+  private.cb = cb;
+  private.user_data = user_data;
+}
+
+BatteryData *
+get_batt_data(void)
+{
+  return &private.data;
+}
+
+gboolean
+batt_calibrated(void)
+{
+  return private.data.charge_full != 0;
+}
+
+void
+free_batt(void)
+{
+  if (private.client)
+    g_object_unref(private.client);
+
+  memset(&private, 0, sizeof(private));
+}

@@ -3,7 +3,8 @@ Section: x11
 Priority: extra
 Maintainer: Ivan J. <parazyd@dyne.org>
 Uploaders: Pali Rohár <pali.rohar@gmail.com>, Merlijn Wajer <merlijn@wizzup.org>
-Build-Depends: debhelper (>= 5),
+Build-Depends:
+ debhelper (>= 9),
  pkg-config,
  libhildon1-dev,
  libhildondesktop1-dev,
@@ -13,6 +14,7 @@ Build-Depends: debhelper (>= 5),
  libdbus-1-dev,
  libdbus-glib-1-dev,
  libglib2.0-dev,
+ libupower-glib-dev (>=1:0.99.7.5)
 Standards-Version: 3.7.3
 
 Package: status-area-applet-battery
@@ -23,6 +25,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
  mediaplayer-l10n-mr0,
  osso-sounds-ui,
  profiled (>= 0.0.3),
- upower,
+ upower (>=1:0.99.7.5)
 Description: status area battery applet
  Battery applet for the status area. This will show the battery information.
