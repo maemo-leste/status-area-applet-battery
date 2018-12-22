@@ -1,8 +1,8 @@
 Source: status-area-applet-battery
 Section: x11
 Priority: extra
-Maintainer: Ivan J. <parazyd@dyne.org>
-Uploaders: Pali Rohár <pali.rohar@gmail.com>, Merlijn Wajer <merlijn@wizzup.org>
+Maintainer: Arthur D. <spinal.by@gmail.com>
+Uploaders: Pali Rohár <pali.rohar@gmail.com>, Merlijn Wajer <merlijn@wizzup.org>, Ivan J. <parazyd@dyne.org>
 Build-Depends:
  debhelper (>= 10),
  pkg-config,
