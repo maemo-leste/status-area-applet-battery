@@ -24,6 +24,6 @@ install:
 	install -m 644 status-area-applet-battery.schemas "$(DESTDIR)/usr/share/gconf/schemas/"
 
 clean:
-	$(RM) status-area-applet-battery.{so,o}
+	$(RM) status-area-applet-battery.so status-area-applet-battery.o
 
 .PHONY: all install clean
