@@ -744,77 +744,49 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   if (!priv->value)
   {
     g_warning("Could not create GtkLabel");
-    gtk_widget_destroy(priv->title);
-    return;
+    goto no_label;
   }
 
   priv->image = gtk_image_new();
   if (!priv->image)
   {
     g_warning("Could not create GtkImage");
-    gtk_widget_destroy(priv->title);
-    gtk_widget_destroy(priv->value);
-    return;
+    goto no_image;
   }
 
   alignment = gtk_alignment_new(0, 0.5, 0, 0);
   if (!alignment)
   {
     g_warning("Could not create GtkAlignment");
-    gtk_widget_destroy(priv->title);
-    gtk_widget_destroy(priv->value);
-    gtk_widget_destroy(priv->image);
-    return;
+    goto no_halignment;
   }
 
   event_box = gtk_event_box_new();
   if (!event_box)
   {
     g_warning("Could not create GtkEventBox");
-    gtk_widget_destroy(priv->title);
-    gtk_widget_destroy(priv->value);
-    gtk_widget_destroy(priv->image);
-    gtk_widget_destroy(alignment);
-    return;
+    goto no_event_box;
   }
 
   priv->hbox = gtk_hbox_new(FALSE, 0);
   if (!priv->hbox)
   {
     g_warning("Could not create GtkHBox");
-    gtk_widget_destroy(priv->title);
-    gtk_widget_destroy(priv->value);
-    gtk_widget_destroy(priv->image);
-    gtk_widget_destroy(alignment);
-    gtk_widget_destroy(event_box);
-    return;
+    goto no_hbox;
   }
 
   label_box = gtk_vbox_new(FALSE, 0);
   if (!label_box)
   {
     g_warning("Could not create GtkVBox");
-    gtk_widget_destroy(priv->title);
-    gtk_widget_destroy(priv->value);
-    gtk_widget_destroy(priv->image);
-    gtk_widget_destroy(priv->hbox);
-    gtk_widget_destroy(alignment);
-    gtk_widget_destroy(event_box);
-    return;
+    goto no_vbox;
   }
 
   priv->alignment = gtk_alignment_new(0, 0.5, 0, 0);
   if (!priv->alignment)
   {
     g_warning("Could not create GtkAlignment");
-    gtk_widget_destroy(priv->title);
-    gtk_widget_destroy(priv->value);
-    gtk_widget_destroy(priv->image);
-    gtk_widget_destroy(priv->hbox);
-    gtk_widget_destroy(alignment);
-    gtk_widget_destroy(event_box);
-    gtk_widget_destroy(label_box);
-    return;
+    goto no_valignment;
   }
 
   gtk_widget_set_name(priv->title, "hildon-button-title");
@@ -859,6 +831,23 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
 
   gtk_container_add(GTK_CONTAINER(plugin), event_box);
   gtk_widget_show_all(GTK_WIDGET(plugin));
+
+  return;
+
+no_valignment:
+    gtk_widget_destroy(label_box);
+no_vbox:
+    gtk_widget_destroy(priv->hbox);
+no_hbox:
+    gtk_widget_destroy(event_box);
+no_event_box:
+    gtk_widget_destroy(alignment);
+no_halignment:
+    gtk_widget_destroy(priv->image);
+no_image:
+    gtk_widget_destroy(priv->value);
+no_label:
+    gtk_widget_destroy(priv->title);
 }
 
 static void
