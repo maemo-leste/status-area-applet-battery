@@ -1,3 +1,9 @@
+status-area-applet-battery (1.4.1-1) unstable; urgency=medium
+
+  * Fix Droid4 wall charger detection
+
+ -- Arthur D. <spinal.by@gmail.com>  Sun, 19 Jan 2020 18:22:45 +0300
+
 status-area-applet-battery (1.4-1) unstable; urgency=medium
 
   * Move voltage estimated percentage fallback to UPower
