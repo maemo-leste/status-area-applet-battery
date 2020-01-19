@@ -34,8 +34,6 @@ static const char* blacklist[] = {
   "rx51-battery",
   /* Nokia N900 charger device is exposed as battery by UPower */
   "bq24150a-0",
-  /* Droid4 line power device (driver doesn't send uevents) */
-  "usb",
   /* End of list */
   NULL
 };
