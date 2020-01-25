@@ -1,3 +1,9 @@
+status-area-applet-battery (1.5.1-1) unstable; urgency=medium
+
+  * Port to autotools (fixes install paths)
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Sat, 25 Jan 2020 13:46:51 +0100
+
 status-area-applet-battery (1.5.0-1) unstable; urgency=medium
 
   * Port to newer UPower API
