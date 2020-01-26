@@ -18,3 +18,7 @@ dist_gconfschemas_DATA = status-area-applet-battery.schemas
 
 hildonstatusmenudesktopentry_DATA = status-area-applet-battery.desktop
 EXTRA_DIST = $(hildonstatusmenudesktopentry_DATA)
+
+install-data-hook:
+	@(cd $(DESTDIR)$(hildondesktoplibdir) && $(RM) \
+		$(hildondesktoplib_LTLIBRARIES))
