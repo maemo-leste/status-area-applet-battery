@@ -102,7 +102,7 @@ GType battery_status_plugin_get_type(void);
 HD_DEFINE_PLUGIN_MODULE_EXTENDED(BatteryStatusAreaItem,
                         battery_status_plugin,
                         HD_TYPE_STATUS_MENU_ITEM,
-			G_ADD_PRIVATE(BatteryStatusAreaItem), , );
+			G_ADD_PRIVATE_DYNAMIC(BatteryStatusAreaItem), , );
 
 static gboolean
 battery_status_plugin_replay_sound(gpointer data)
