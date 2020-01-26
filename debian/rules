@@ -1,3 +1,7 @@
 #!/usr/bin/make -f
+
+override_dh_autoreconf:
+	dh_autoreconf --as-needed
+
 %:
 	dh $@

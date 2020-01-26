@@ -4,6 +4,7 @@ AC_INIT([Status area battery applet],
 
 #[patsubst(esyscmd([dpkg-parsechangelog | sed -n '/^Version: \(.*\)$/ {s//\1/;p}']),],
 AM_INIT_AUTOMAKE
+LT_INIT([shared disable-static])
 AC_CONFIG_FILES([Makefile])
 
 AC_PROG_CC

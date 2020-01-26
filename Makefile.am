@@ -11,8 +11,7 @@ status_area_applet_battery_la_LIBADD = \
 	$(LIBHILDON_LIBS) $(LIBCANBERRA_LIBS) $(LIBHILDONDESKTOP_LIBS) \
 	$(PROFILE_LIBS) $(DBUS_LIBS) $(GCONF_LIBS) $(UPOWER_GLIB_LIBS)
 
-status_area_applet_battery_la_LDFLAGS = -module -avoid-version \
-    -Wl,--as-needed
+status_area_applet_battery_la_LDFLAGS = -Wl,--as-needed -module -avoid-version
 
 gconfschemasdir = $(sysconfdir)/gconf/schemas
 dist_gconfschemas_DATA = status-area-applet-battery.schemas
