@@ -458,7 +458,7 @@ battery_status_plugin_battery_empty(BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_battery_low(BatteryStatusAreaItem *plugin)
 {
-  if (plugin->priv->low_last_reported < time(NULL) && plugin->priv->low_last_reported + 30 > time(NULL))
+  if (plugin->priv->low_last_reported < time(NULL) && plugin->priv->low_last_reported + 60 > time(NULL))
     return;
 
   plugin->priv->low_last_reported = time(NULL);
