@@ -1,3 +1,9 @@
+status-area-applet-battery (1.4.2) unstable; urgency=medium
+
+  * Increase interval for 'battery low' warnings
+
+ -- Arthur Demchenkov <spinal.by@gmail.com>  Thu, 05 Mar 2020 20:46:21 +0300
+
 status-area-applet-battery (1.4.1-1) unstable; urgency=medium
 
   * Fix Droid4 wall charger detection
