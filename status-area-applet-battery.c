@@ -99,10 +99,9 @@ struct _BatteryStatusAreaItemPrivate {
 
 GType battery_status_plugin_get_type(void);
 
-HD_DEFINE_PLUGIN_MODULE_EXTENDED(BatteryStatusAreaItem,
+HD_DEFINE_PLUGIN_MODULE(BatteryStatusAreaItem,
                         battery_status_plugin,
-                        HD_TYPE_STATUS_MENU_ITEM,
-			G_ADD_PRIVATE(BatteryStatusAreaItem), , );
+                        HD_TYPE_STATUS_MENU_ITEM);
 
 static gboolean
 battery_status_plugin_replay_sound(gpointer data)
@@ -680,7 +679,7 @@ battery_status_plugin_init(BatteryStatusAreaItem *plugin)
   GtkWidget *event_box;
   GtkStyle *style;
 
-  plugin->priv = (BatteryStatusAreaItemPrivate*)battery_status_plugin_get_instance_private(plugin);
+  plugin->priv = G_TYPE_INSTANCE_GET_PRIVATE(plugin, battery_status_plugin_get_type(), BatteryStatusAreaItemPrivate);
   priv = plugin->priv;
 
   dbus_error_init(&error);
@@ -910,6 +909,8 @@ battery_status_plugin_class_init(BatteryStatusAreaItemClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS(klass);
 
   object_class->finalize = (GObjectFinalizeFunc)battery_status_plugin_finalize;
+
+  g_type_class_add_private(klass, sizeof(BatteryStatusAreaItemPrivate));
 }
 
 static void
