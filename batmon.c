@@ -86,6 +86,7 @@ check_device(UpDevice *dev)
         technology != UP_DEVICE_TECHNOLOGY_UNKNOWN)
     {
       private.battery = dev;
+      g_object_ref(private.battery);
     }
 
     return;
@@ -95,6 +96,7 @@ check_device(UpDevice *dev)
       private.charger == NULL)
   {
     private.charger = dev;
+    g_object_ref(private.charger);
   }
 }
 
@@ -307,6 +309,10 @@ free_batt(void)
 {
   if (private.client)
     g_object_unref(private.client);
+  if (private.battery)
+    g_object_unref(private.battery);
+  if (private.charger)
+    g_object_unref(private.charger);
 
   memset(&private, 0, sizeof(private));
 }
