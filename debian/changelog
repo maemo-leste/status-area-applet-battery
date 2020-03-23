@@ -1,3 +1,10 @@
+status-area-applet-battery (1.5.3-1) unstable; urgency=medium
+
+  * Fix port Upower port done by me
+  * Revert g_type_class_add_private deprecation.
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Mon, 23 Mar 2020 13:25:15 +0100
+
 status-area-applet-battery (1.5.2-1) unstable; urgency=medium
 
   * Fix autotools and wrong macro
