@@ -1,3 +1,29 @@
+status-area-applet-battery (1.5.3-1) unstable; urgency=medium
+
+  * Fix port Upower port done by me
+  * Revert g_type_class_add_private deprecation.
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Mon, 23 Mar 2020 13:25:15 +0100
+
+status-area-applet-battery (1.5.2-1) unstable; urgency=medium
+
+  * Fix autotools and wrong macro
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Sun, 26 Jan 2020 20:13:34 +0100
+
+status-area-applet-battery (1.5.1-1) unstable; urgency=medium
+
+  * Port to autotools (fixes install paths)
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Sat, 25 Jan 2020 13:46:51 +0100
+
+status-area-applet-battery (1.5.0-1) unstable; urgency=medium
+
+  * Port to newer UPower API
+  * Deprecate g_type_class_add_private
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Thu, 23 Jan 2020 13:16:01 +0100
+
 status-area-applet-battery (1.4.2) unstable; urgency=medium
 
   * Increase interval for 'battery low' warnings
