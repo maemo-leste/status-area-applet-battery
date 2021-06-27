@@ -341,14 +341,14 @@ battery_status_plugin_animation(gpointer data)
 static void
 battery_status_plugin_charger_connected(BatteryStatusAreaItem *plugin)
 {
-  hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_charging"));
-  battery_status_plugin_play_sound(plugin, "/usr/share/sounds/ui-charging_started.wav", FALSE);
+// clort  hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_charging"));
+// clort  battery_status_plugin_play_sound(plugin, "/usr/share/sounds/ui-charging_started.wav", FALSE);
 }
 
 static void
 battery_status_plugin_charger_disconnected(BatteryStatusAreaItem *plugin)
 {
-  hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_disconnect_charger"));
+// clort hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_disconnect_charger"));
 }
 
 static void
@@ -395,7 +395,7 @@ battery_status_plugin_charging_stop(BatteryStatusAreaItem *plugin)
   BatteryStatusAreaItemPrivate *priv = plugin->priv;
 
   if (priv->timer_id > 0 && priv->is_charging && priv->is_discharging)
-    hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_full"));
+// clort   hildon_banner_show_information(GTK_WIDGET(plugin), NULL, dgettext("osso-dsm-ui", "incf_ib_battery_full"));
 
   battery_status_plugin_animation_stop(plugin);
 
@@ -458,7 +458,7 @@ battery_status_plugin_battery_empty(BatteryStatusAreaItem *plugin)
 static void
 battery_status_plugin_battery_low(BatteryStatusAreaItem *plugin)
 {
-  if (plugin->priv->low_last_reported < time(NULL) && plugin->priv->low_last_reported + 59 > time(NULL))
+  if (plugin->priv->low_last_reported < time(NULL) && plugin->priv->low_last_reported + 30 > time(NULL))
     return;
 
   plugin->priv->low_last_reported = time(NULL);
