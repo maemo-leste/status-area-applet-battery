@@ -247,17 +247,15 @@ battery_status_plugin_update_text(BatteryStatusAreaItem *plugin)
   {
     const char* batt_status = NULL;
 
-    if (calibrated)
-    {
-      /* Show "Battery: xx%" if not fully charged */
-      ptr += g_snprintf(text, sizeof(text), "%s: ", dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
+    /* Show "Battery: xx%" if not fully charged */
+    ptr += g_snprintf(text, sizeof(text), "%s: ",
+                      dgettext("osso-dsm-ui", "tncpa_li_plugin_sb_battery"));
 
-      if (!priv->is_charging || !priv->is_discharging)
-        ptr += g_snprintf(ptr, limit - ptr, "%d%%", priv->percentage);
+    if (!priv->is_charging || !priv->is_discharging)
+      ptr += g_snprintf(ptr, limit - ptr, "%d%%", priv->percentage);
 
-      gtk_label_set_text(GTK_LABEL(priv->title), text);
-      text[0] = '\0';
-    }
+    gtk_label_set_text(GTK_LABEL(priv->title), text);
+    text[0] = '\0';
 
     if (priv->is_charging && priv->is_discharging)
       batt_status = "incf_me_battery_charged";
