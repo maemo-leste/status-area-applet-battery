@@ -74,13 +74,11 @@ check_device(UpDevice *dev)
 {
   gchar *native_path;
   guint  kind;
-  guint  technology;
   gint   i;
 
   g_object_get(dev,
                "native-path", &native_path,
                "kind"       , &kind,
-               "technology" , &technology,
                NULL);
 
   for (i = 0;  blacklist[i] != NULL;  i++)
@@ -91,8 +89,7 @@ check_device(UpDevice *dev)
 
   if (kind == UP_DEVICE_KIND_BATTERY)
   {
-    if (private.battery == NULL &&
-        technology != UP_DEVICE_TECHNOLOGY_UNKNOWN)
+    if (private.battery == NULL)
     {
       private.battery = dev;
       g_object_ref(private.battery);
