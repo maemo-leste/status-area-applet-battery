@@ -1,3 +1,10 @@
+status-area-applet-battery (1.5.4-1) unstable; urgency=medium
+
+  * Fix port Upower port done by me
+  * Revert g_type_class_add_private deprecation.
+
+ -- Ivaylo Dimitrov <ivo.g.dimitrov.75@gmail.com>  Sun, 30 Oct 2022 12:09:17 +0200
+
 status-area-applet-battery (1.5.3-1) unstable; urgency=medium
 
   * Fix port Upower port done by me
