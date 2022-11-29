@@ -17,7 +17,7 @@ Build-Depends:
  libdbus-1-dev,
  libdbus-glib-1-dev,
  libglib2.0-dev,
- libupower-glib-dev (>=1:0.99.7.5),
+ libupower-glib-dev (>=0.99.7.5),
  osso-af-settings
 Standards-Version: 3.7.3
 
