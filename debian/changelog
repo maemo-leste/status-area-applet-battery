@@ -1,3 +1,9 @@
+status-area-applet-battery (1.5.5-1) unstable; urgency=medium
+
+  * Fix N900 charger detection
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Sat, 25 Mar 2023 14:24:29 +0100
+
 status-area-applet-battery (1.5.4-1) unstable; urgency=medium
 
   * Fix port Upower port done by me
