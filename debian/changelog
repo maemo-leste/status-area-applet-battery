@@ -1,3 +1,9 @@
+status-area-applet-battery (1.5.6-1) unstable; urgency=medium
+
+  * Release for stable
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Wed, 29 Mar 2023 20:56:20 +0200
+
 status-area-applet-battery (1.5.5-1) unstable; urgency=medium
 
   * Fix N900 charger detection
