@@ -1,3 +1,9 @@
+status-area-applet-battery (1.5.7-1) unstable; urgency=medium
+
+  * Fix N900 blacklist
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Fri, 29 Mar 2024 00:02:26 +0100
+
 status-area-applet-battery (1.5.6-1) unstable; urgency=medium
 
   * Release for stable
