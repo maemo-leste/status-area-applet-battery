@@ -17,7 +17,7 @@ Build-Depends:
  libdbus-1-dev,
  libdbus-glib-1-dev,
  libglib2.0-dev,
- libupower-glib-dev (>=0.99.7.5),
+ libupower-glib-dev,
  osso-af-settings
 Standards-Version: 3.7.3
 
@@ -29,6 +29,6 @@ Depends: ${shlibs:Depends}, ${misc:Depends},
  mediaplayer-l10n-mr0,
  osso-sounds-ui,
  profiled (>= 0.0.3),
- upower (>=1:0.99.7.5)
+ upower
 Description: status area battery applet
  Battery applet for the status area. This will show the battery information.
