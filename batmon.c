@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include <gio/gio.h>
 #include <upower.h>
@@ -120,6 +121,48 @@ find_upower_devices()
   g_ptr_array_unref (devices);
 }
 
+/* Estimate percentage based on battery voltage if driver does not report it */
+static void
+refresh_capacity_estimation(void)
+{
+  BatteryData *data = &private.data;
+  gdouble upower_percentage;
+  gdouble delta;
+
+  /* data->percentage might contain an estimation, so fetch real value from upower */
+  g_object_get(private.battery, "percentage", &upower_percentage, NULL);
+
+  if (upower_percentage || data->charger_online)
+    return;
+
+  if (!data->voltage_min)
+    data->voltage_min = 3.1;
+  if (!data->voltage_max)
+    data->voltage_max = 4.2;
+  delta = data->voltage_max - data->voltage_min;
+
+  if (data->voltage_now > (data->voltage_min + 0.2))
+  {
+    if (data->voltage_now <= (data->voltage_min + delta * 1.5 / 6))
+      data->percentage = 4;
+    else if (data->voltage_now <= (data->voltage_min + delta * 2.3 / 6))
+      data->percentage = 9;
+    else if (data->voltage_now <= (data->voltage_min + delta * 3 / 6))
+      data->percentage = 12;
+    else if (data->voltage_now <= (data->voltage_min + delta * 4 / 6))
+      data->percentage = 32;
+    else if (data->voltage_now <= (data->voltage_min + delta * 5 / 6))
+      data->percentage = 57;
+    else if (data->voltage_now <= (data->voltage_min + delta * 5.7 / 6))
+      data->percentage = 82;
+    else
+      data->percentage = 99;
+
+    /* Indicate that the capacity is an estimation */
+    data->estimating = true;
+  }
+}
+
 static void
 battery_prop_changed_cb(UpDevice *battery,
                         GParamSpec *pspec,
@@ -128,9 +171,12 @@ battery_prop_changed_cb(UpDevice *battery,
   BatteryData *data = &private.data;
   const gchar *prop = pspec->name;
 
-  if (!g_strcmp0(prop, "percentage"))
+  if (!g_strcmp0(prop, "percentage")) {
     g_object_get(battery, prop, &data->percentage,    NULL);
-  else if (!g_strcmp0(prop, "time-to-empty"))
+    /* The fuel gauge can start reporting percentage during runtime */
+    if (data->estimating)
+      data->estimating = false;
+  } else if (!g_strcmp0(prop, "time-to-empty"))
     g_object_get(battery, prop, &data->time_to_empty, NULL);
   else if (!g_strcmp0(prop, "time-to-full"))
     g_object_get(battery, prop, &data->time_to_full,  NULL);
@@ -138,7 +184,10 @@ battery_prop_changed_cb(UpDevice *battery,
     g_object_get(battery, prop, &data->charge_now,    NULL);
   else if (!g_strcmp0(prop, "charge-full"))
     g_object_get(battery, prop, &data->charge_full,   NULL);
-  else
+  else if (!g_strcmp0(prop, "voltage")) {
+    g_object_get(battery, prop, &data->voltage_now,  NULL);
+    refresh_capacity_estimation();
+  } else
     return;
 
   if (private.cb)
@@ -198,14 +247,22 @@ get_battery_properties(void)
 {
   BatteryData *data = &private.data;
 
+  data->estimating = false;
+
   g_object_get(private.battery,
-               "percentage"   , &data->percentage,
-               "state"        , &data->state,
-               "time-to-empty", &data->time_to_empty,
-               "time-to-full" , &data->time_to_full,
-               "charge"       , &data->charge_now,
-               "charge-full"  , &data->charge_full,
+               "percentage"          , &data->percentage,
+               "state"               , &data->state,
+               "time-to-empty"       , &data->time_to_empty,
+               "time-to-full"        , &data->time_to_full,
+               "charge"              , &data->charge_now,
+               "charge-full"         , &data->charge_full,
+               "voltage"             , &data->voltage_now,
+               "voltage-min-design"  , &data->voltage_min,
+               "voltage-max-design"  , &data->voltage_max,
                NULL);
+
+  if (!data->percentage)
+    refresh_capacity_estimation();
 
   if (private.charger)
   {
