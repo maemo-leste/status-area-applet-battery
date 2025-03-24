@@ -576,6 +576,8 @@ on_property_changed(BatteryData *batt_data, void *user_data)
 
   priv->percentage = (int)batt_data->percentage;
 
+  /* TODO: handle priv->estimating, e.g. show orange-themed battery icon */
+
   bars = (int)(8 *(6.25 + batt_data->percentage) / 100);
 
   switch(batt_data->state)
