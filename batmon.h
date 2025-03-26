@@ -43,6 +43,12 @@ typedef struct {
   gdouble charge_now;
   /* The amount of charge when battery is full */
   gdouble charge_full;
+
+  /* For voltage-based estimations when battery is not calibrated */
+  gboolean estimating;
+  gdouble  voltage_now;
+  gdouble  voltage_min;
+  gdouble  voltage_max;
 } BatteryData;
 
 typedef void BatteryCallback (BatteryData *, void *);
