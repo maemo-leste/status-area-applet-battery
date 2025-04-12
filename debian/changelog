@@ -1,3 +1,9 @@
+status-area-applet-battery (1.5.8-1) unstable; urgency=medium
+
+  * Estimate percentage using voltage exported by newer upower
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Sat, 12 Apr 2025 17:23:21 +0200
+
 status-area-applet-battery (1.5.7-1) unstable; urgency=medium
 
   * Fix N900 blacklist
