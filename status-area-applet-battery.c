@@ -571,8 +571,9 @@ on_property_changed(BatteryData *batt_data, void *user_data)
 
   priv->charger_connected = batt_data->charger_online;
 
-  priv->charge_now  = (int)(1000 * batt_data->charge_now);
-  priv->charge_full = (int)(1000 * batt_data->charge_full);
+  /* Convert energy (Wh) reported by UPower to mAh */
+  priv->charge_now  = (int)(1000 * batt_data->energy_now / batt_data->voltage_now);
+  priv->charge_full = (int)(1000 * batt_data->energy_full / batt_data->voltage_now);
 
   priv->percentage = (int)batt_data->percentage;
 

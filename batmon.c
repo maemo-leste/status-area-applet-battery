@@ -180,10 +180,10 @@ battery_prop_changed_cb(UpDevice *battery,
     g_object_get(battery, prop, &data->time_to_empty, NULL);
   else if (!g_strcmp0(prop, "time-to-full"))
     g_object_get(battery, prop, &data->time_to_full,  NULL);
-  else if (!g_strcmp0(prop, "charge"))
-    g_object_get(battery, prop, &data->charge_now,    NULL);
-  else if (!g_strcmp0(prop, "charge-full"))
-    g_object_get(battery, prop, &data->charge_full,   NULL);
+  else if (!g_strcmp0(prop, "energy"))
+    g_object_get(battery, prop, &data->energy_now,    NULL);
+  else if (!g_strcmp0(prop, "energy-full"))
+    g_object_get(battery, prop, &data->energy_full,   NULL);
   else if (!g_strcmp0(prop, "voltage")) {
     g_object_get(battery, prop, &data->voltage_now,  NULL);
     refresh_capacity_estimation();
@@ -254,8 +254,8 @@ get_battery_properties(void)
                "state"               , &data->state,
                "time-to-empty"       , &data->time_to_empty,
                "time-to-full"        , &data->time_to_full,
-               "charge"              , &data->charge_now,
-               "charge-full"         , &data->charge_full,
+               "energy"              , &data->energy_now,
+               "energy-full"         , &data->energy_full,
                "voltage"             , &data->voltage_now,
                "voltage-min-design"  , &data->voltage_min,
                "voltage-max-design"  , &data->voltage_max,
@@ -356,7 +356,7 @@ get_batt_data(void)
 gboolean
 batt_calibrated(void)
 {
-  return private.data.charge_full != 0;
+  return private.data.energy_full && private.data.energy_now;
 }
 
 void

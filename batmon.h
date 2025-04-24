@@ -39,10 +39,10 @@ typedef struct {
   /* The amount of time until the device is fully charged */
   gint64  time_to_full;
 
-  /* Charge left, Ah */
-  gdouble charge_now;
-  /* The amount of charge when battery is full */
-  gdouble charge_full;
+  /* Energy left, Wh */
+  gdouble energy_now;
+  /* The amount of energy when battery is full */
+  gdouble energy_full;
 
   /* For voltage-based estimations when battery is not calibrated */
   gboolean estimating;
